@@ -398,7 +398,7 @@ The command only computes the correlations for the `max_lateral_position` qualit
 
 ### 6. Offline Evaluation
 
-Download the offline evaluation datasets from [here](https://drive.google.com/file/d/1EOmMRdaJEDDp_Mq8yjxqHk1w7AbFuhdO/view?usp=sharing) and copy them within the `logs` folder of this repository. The datasets are in `logs/datasets`. Let us carry out the offline evaluation for the `dave2` model.
+Download the offline evaluation datasets from [here](https://drive.switch.ch/index.php/s/4GyponKp6hx1Rs6) and copy them within the `logs` folder of this repository. Let us carry out the offline evaluation for the `dave2` model.
 
 ### 5.1. Simulated images
 
