@@ -1,3 +1,6 @@
+| :zap:        Complete replication package coming soon!        :zap: |
+|---------------------------------------------------------------------|
+
 # Replication Package for the paper: "Two is Better Than One: Digital Siblings to Improve Autonomous Driving Testing"
 
 The repository contains the source code to run the experiments and analyze the results.
