@@ -1,0 +1,33 @@
+//--- OBJECT WRITE BEGIN
+$ThisPrefab = new SimGroup() {
+    canSave = "1";
+    canSaveDynamicFields = "1";
+    groupPosition = "0.000000 0.000000 0.000000";
+
+    
+    new BeamNGVehicle(ego_vehicle) {
+        JBeam = "etk800";
+        color = "Red";
+        colorPalette0 = "Red";
+        colorPalette1 = "Red";
+        renderDistance = "500";
+        renderFade = "0.1";
+        dataBlock = "default_vehicle";
+        position = "40.52424646645751 77.12664008826651 -28.0";
+        rotationMatrix = "0.9981372533091438 0.061008389230318066 0.0 -0.061008389230318066 0.9981372533091438 -0.0 -0.0 0.0 1.0";
+        scale = "1 1 1";
+        canSave = "1";
+        canSaveDynamicFields = "1";
+        annotation = "CAR";
+        licenseText = "TIG";
+        autoEnterVehicle = "false";
+        
+    };
+    
+
+    
+
+    
+
+    
+};
