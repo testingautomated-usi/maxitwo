@@ -121,3 +121,4 @@ cyclegan/checkpoints
 
 Makefile
 
+*.tar.gz
