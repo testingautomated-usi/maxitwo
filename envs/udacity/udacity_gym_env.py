@@ -7,19 +7,18 @@ from typing import NamedTuple
 import gym
 import numpy as np
 from gym import spaces
-from PIL import Image
 
 import envs.cyclegan_wrapper
-from config import UDACITY_SIM_NAME
-from custom_types import ObserveData
-from cyclegan.models.test_model import TestModel
 from envs.cyclegan_wrapper import CycleganWrapper
-from envs.udacity.config import BASE_PORT, INPUT_DIM, MAX_STEERING
+from config import UDACITY_SIM_NAME
+from cyclegan.models.test_model import TestModel
+from envs.udacity.config import BASE_PORT, MAX_STEERING, INPUT_DIM
 from envs.udacity.core.udacity_sim import UdacitySimController
 from envs.unity_proc import UnityProcess
 from global_log import GlobalLog
 from test_generators.mapelites.individual import Individual
 from test_generators.test_generator import TestGenerator
+from custom_types import ObserveData
 
 
 class UdacityGymEnv(gym.Env, CycleganWrapper):
@@ -42,9 +41,13 @@ class UdacityGymEnv(gym.Env, CycleganWrapper):
         cyclegan_options: NamedTuple = None,
     ):
 
-        envs.cyclegan_wrapper.CycleganWrapper.__init__(
-            self, env_name=UDACITY_SIM_NAME, cyclegan_model=cyclegan_model, cyclegan_options=cyclegan_options
-        )
+        if cyclegan_model is not None:
+            envs.cyclegan_wrapper.CycleganWrapper.__init__(
+                self,
+                env_name=UDACITY_SIM_NAME,
+                cyclegan_model=cyclegan_model,
+                cyclegan_options=cyclegan_options,
+            )
 
         self.seed = seed
         self.exe_path = exe_path
@@ -60,18 +63,32 @@ class UdacityGymEnv(gym.Env, CycleganWrapper):
         self.unity_process = None
         if self.exe_path is not None:
             self.logger.info("Starting UdacityGym env")
-            assert os.path.exists(self.exe_path), "Path {} does not exist".format(self.exe_path)
+            assert os.path.exists(self.exe_path), "Path {} does not exist".format(
+                self.exe_path
+            )
             # Start Unity simulation subprocess if needed
             self.unity_process = UnityProcess(sim_name=UDACITY_SIM_NAME)
-            self.unity_process.start(sim_path=self.exe_path, headless=headless, port=self.port)
-            time.sleep(2)  # wait for the simulator to start and the scene to be selected
+            self.unity_process.start(
+                sim_path=self.exe_path, headless=headless, port=self.port
+            )
+            time.sleep(
+                2
+            )  # wait for the simulator to start and the scene to be selected
 
-        self.executor = UdacitySimController(port=self.port, test_generator=test_generator)
+        self.executor = UdacitySimController(
+            port=self.port, test_generator=test_generator
+        )
 
         # steering + throttle, action space must be symmetric
-        self.action_space = spaces.Box(low=np.array([-MAX_STEERING, -1]), high=np.array([MAX_STEERING, 1]), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=np.array([-MAX_STEERING, -1]),
+            high=np.array([MAX_STEERING, 1]),
+            dtype=np.float32,
+        )
 
-        self.observation_space = spaces.Box(low=0, high=255, shape=INPUT_DIM, dtype=np.uint8)
+        self.observation_space = spaces.Box(
+            low=0, high=255, shape=INPUT_DIM, dtype=np.uint8
+        )
 
     def stop_simulation(self):
         raise NotImplementedError("Not implemented")
@@ -92,7 +109,9 @@ class UdacityGymEnv(gym.Env, CycleganWrapper):
 
         return observation, done, info
 
-    def reset(self, skip_generation: bool = False, individual: Individual = None) -> np.ndarray:
+    def reset(
+        self, skip_generation: bool = False, individual: Individual = None
+    ) -> np.ndarray:
 
         self.executor.reset(skip_generation=skip_generation, individual=individual)
         observation, done, info = self.observe()

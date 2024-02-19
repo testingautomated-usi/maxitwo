@@ -5,15 +5,14 @@ from typing import NamedTuple
 import gym
 import numpy as np
 from gym import spaces
-from PIL import Image
 
 import envs.cyclegan_wrapper
 from config import BEAMNG_SIM_NAME
+from envs.cyclegan_wrapper import CycleganWrapper
 from custom_types import ObserveData
 from cyclegan.models.test_model import TestModel
 from envs.beamng.beamng_executor import BeamngExecutor
-from envs.beamng.config import INPUT_DIM, MAP_SIZE, MAX_STEERING, MAX_THROTTLE, MIN_THROTTLE
-from envs.cyclegan_wrapper import CycleganWrapper
+from envs.beamng.config import MIN_THROTTLE, MAX_THROTTLE, MAX_STEERING, INPUT_DIM
 from global_log import GlobalLog
 from test_generators.mapelites.individual import Individual
 from test_generators.test_generator import TestGenerator
@@ -41,9 +40,13 @@ class BeamngGymEnv(gym.Env, CycleganWrapper):
         cyclegan_model: TestModel = None,
         cyclegan_options: NamedTuple = None,
     ):
-        envs.cyclegan_wrapper.CycleganWrapper.__init__(
-            self, env_name=BEAMNG_SIM_NAME, cyclegan_model=cyclegan_model, cyclegan_options=cyclegan_options
-        )
+        if cyclegan_model is not None:
+            envs.cyclegan_wrapper.CycleganWrapper.__init__(
+                self,
+                env_name=BEAMNG_SIM_NAME,
+                cyclegan_model=cyclegan_model,
+                cyclegan_options=cyclegan_options,
+            )
 
         self.min_throttle = MIN_THROTTLE
         self.max_throttle = MAX_THROTTLE
@@ -61,9 +64,15 @@ class BeamngGymEnv(gym.Env, CycleganWrapper):
             autopilot=autopilot,
         )
 
-        self.action_space = spaces.Box(low=np.array([-MAX_STEERING]), high=np.array([MAX_STEERING]), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=np.array([-MAX_STEERING]),
+            high=np.array([MAX_STEERING]),
+            dtype=np.float32,
+        )
 
-        self.observation_space = spaces.Box(low=0, high=255, shape=INPUT_DIM, dtype=np.uint8)
+        self.observation_space = spaces.Box(
+            low=0, high=255, shape=INPUT_DIM, dtype=np.uint8
+        )
 
         self.seed(seed)
         self.count = 0
@@ -72,10 +81,16 @@ class BeamngGymEnv(gym.Env, CycleganWrapper):
         return self.executor.close()
 
     def stop_simulation(self):
-        raise NotImplementedError("Not implemented")
+        # it seems that BeamNG naturally waits for the action to be returned by the agent
+        pass
+        # # it does not seem to work, vehicle continues to go
+        # self.executor.pause()
 
     def restart_simulation(self):
-        raise NotImplementedError("Not implemented")
+        # it seems that BeamNG naturally waits for the action to be returned by the agent
+        pass
+        # # it does not seem to work, vehicle continues to go
+        # self.executor.resume()
 
     def step(self, action: np.ndarray) -> ObserveData:
         """
@@ -84,7 +99,9 @@ class BeamngGymEnv(gym.Env, CycleganWrapper):
         """
         # action[0] is the steering angle
 
-        self.executor.take_action(steering=action[0], throttle=action[1] if len(action) > 1 else None)
+        self.executor.take_action(
+            steering=action[0], throttle=action[1] if len(action) > 1 else None
+        )
         observe_data = self.observe()
 
         return observe_data

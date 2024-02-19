@@ -6,20 +6,24 @@ from typing import NamedTuple
 import gym
 import numpy as np
 from gym import spaces
-from PIL import Image
 
 import envs.cyclegan_wrapper
 from config import DONKEY_SIM_NAME
-from custom_types import ObserveData
 from cyclegan.models.test_model import TestModel
 from envs.cyclegan_wrapper import CycleganWrapper
-from envs.donkey.config import BASE_PORT, BASE_SOCKET_LOCAL_ADDRESS, INPUT_DIM, MAX_STEERING
+from envs.donkey.config import (
+    BASE_PORT,
+    BASE_SOCKET_LOCAL_ADDRESS,
+    MAX_STEERING,
+    INPUT_DIM,
+)
 from envs.donkey.core.donkey_sim import DonkeyUnitySimController
 from envs.donkey.scenes.simulator_scenes import SimulatorScene
 from envs.unity_proc import UnityProcess
 from global_log import GlobalLog
 from test_generators.mapelites.individual import Individual
 from test_generators.test_generator import TestGenerator
+from custom_types import ObserveData
 
 
 class DonkeyGymEnv(gym.Env, CycleganWrapper):
@@ -43,18 +47,27 @@ class DonkeyGymEnv(gym.Env, CycleganWrapper):
         cyclegan_model: TestModel = None,
         cyclegan_options: NamedTuple = None,
     ):
-        envs.cyclegan_wrapper.CycleganWrapper.__init__(
-            self, env_name=DONKEY_SIM_NAME, cyclegan_model=cyclegan_model, cyclegan_options=cyclegan_options
-        )
+
+        if cyclegan_model is not None:
+            envs.cyclegan_wrapper.CycleganWrapper.__init__(
+                self,
+                env_name=DONKEY_SIM_NAME,
+                cyclegan_model=cyclegan_model,
+                cyclegan_options=cyclegan_options,
+            )
 
         self.exe_path = exe_path
         self.logger = GlobalLog("DonkeyGymEnv")
         self.test_generator = test_generator
+        self.cyclegan_model = cyclegan_model
+        self.cyclegan_options = cyclegan_options
 
         # TCP port for communicating with simulation
         if add_to_port == -1:
             port = int(os.environ.get("DONKEY_SIM_PORT", 9091))
-            socket_local_address = int(os.environ.get("BASE_SOCKET_LOCAL_ADDRESS", 52804))
+            socket_local_address = int(
+                os.environ.get("BASE_SOCKET_LOCAL_ADDRESS", 52804)
+            )
         else:
             port = BASE_PORT + add_to_port
             socket_local_address = BASE_SOCKET_LOCAL_ADDRESS + port
@@ -64,10 +77,14 @@ class DonkeyGymEnv(gym.Env, CycleganWrapper):
         self.unity_process = None
         if self.exe_path is not None:
             self.logger.info("Starting DonkeyGym env")
-            assert os.path.exists(self.exe_path), "Path {} does not exist".format(self.exe_path)
+            assert os.path.exists(self.exe_path), "Path {} does not exist".format(
+                self.exe_path
+            )
             # Start Unity simulation subprocess if needed
             self.unity_process = UnityProcess(sim_name=DONKEY_SIM_NAME)
-            self.unity_process.start(sim_path=self.exe_path, headless=headless, port=port)
+            self.unity_process.start(
+                sim_path=self.exe_path, headless=headless, port=port
+            )
 
         # start simulation com
         self.viewer = DonkeyUnitySimController(
@@ -79,9 +96,15 @@ class DonkeyGymEnv(gym.Env, CycleganWrapper):
         )
 
         # steering + throttle, action space must be symmetric
-        self.action_space = spaces.Box(low=np.array([-MAX_STEERING, -1]), high=np.array([MAX_STEERING, 1]), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=np.array([-MAX_STEERING, -1]),
+            high=np.array([MAX_STEERING, 1]),
+            dtype=np.float32,
+        )
 
-        self.observation_space = spaces.Box(low=0, high=255, shape=INPUT_DIM, dtype=np.uint8)
+        self.observation_space = spaces.Box(
+            low=0, high=255, shape=INPUT_DIM, dtype=np.uint8
+        )
         self.seed(seed)
         # wait until loaded
         self.viewer.wait_until_loaded()
@@ -110,7 +133,9 @@ class DonkeyGymEnv(gym.Env, CycleganWrapper):
 
         return observation, done, info
 
-    def reset(self, skip_generation: bool = False, individual: Individual = None) -> np.ndarray:
+    def reset(
+        self, skip_generation: bool = False, individual: Individual = None
+    ) -> np.ndarray:
 
         self.viewer.reset(skip_generation=skip_generation, individual=individual)
         observation, done, info = self.observe()
