@@ -2,7 +2,7 @@
 
 folder_name=$1
 
-if test $# -lt 1; then echo 'Provide a folder_name in logs'; exit 1 ; fi
+if test $# -lt 1 ; then echo 'Provide a folder_name in logs' ; exit 1 ; fi
 
 if [ ! -d "logs/$folder_name" ]; then
   echo "logs/$folder_name does not exist."
@@ -11,10 +11,28 @@ fi
 
 failure_predicts_quality_metric="no"
 
+echo "------- DONKEY IS THE VALIDATOR -------"
 # Should synchronize with test_generators/mapelites/config.py
-quality_metric=max_lateral_positions
 
+quality_metric=max_lateral_positions
 echo "======= $quality_metric ======="
+echo "******* Search on BeamNG, all individuals migrated on Donkey *******"
+python compute_mapelites_correlation.py \
+  --folder logs/$folder_name \
+  --filepaths mapelites_beamng_search mapelites_migration_donkey_beamng_search \
+  --load-probability-map \
+  --failure-probability \
+  --quality-metric $quality_metric \
+  --failure-predicts-quality-metric "$failure_predicts_quality_metric"
+
+echo "******* Search on Udacity, all individuals migrated on Donkey *******"
+python compute_mapelites_correlation.py \
+  --folder logs/$folder_name \
+  --filepaths mapelites_udacity_search mapelites_migration_donkey_udacity_search \
+  --load-probability-map \
+  --failure-probability \
+  --quality-metric $quality_metric \
+  --failure-predicts-quality-metric "$failure_predicts_quality_metric"
 
 echo "******* Search on BeamNG + migration on Udacity and all individuals migrated on Donkey *******"
 python compute_mapelites_correlation.py \
@@ -43,5 +61,4 @@ python compute_mapelites_correlation.py \
   --quality-metric $quality_metric \
   --quality-metric-merge min \
   --failure-predicts-quality-metric "$failure_predicts_quality_metric"
-
 echo '************************************'
