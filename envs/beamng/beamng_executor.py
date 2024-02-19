@@ -1,10 +1,12 @@
-import os.path
-import time
 import traceback
-from typing import Dict, Tuple
 
+import time
 import numpy as np
+from typing import Tuple, Dict
+
+
 from shapely.geometry import Point
+import os.path
 
 from code_pipeline.visualization import RoadTestVisualizer
 from custom_types import ObserveData
@@ -12,9 +14,9 @@ from envs.beamng.beamng_brewer import BeamNGBrewer
 
 # maps is a global variable in the module, which is initialized to Maps()
 from envs.beamng.beamng_car_cameras import BeamNGCarCameras
-from envs.beamng.beamng_tig_maps import LevelsFolder, maps
+from envs.beamng.beamng_tig_maps import maps, LevelsFolder
 from envs.beamng.beamng_waypoint import BeamNGWaypoint
-from envs.beamng.config import BEAMNG_VERSION, MAX_SPEED_BEAMNG, MIN_SPEED_BEAMNG
+from envs.beamng.config import BEAMNG_VERSION, MIN_SPEED_BEAMNG, MAX_SPEED_BEAMNG
 from envs.beamng.decal_road import DecalRoad
 from envs.beamng.simulation_data import SimulationDataRecord
 from envs.beamng.simulation_data_collector import SimulationDataCollector
@@ -27,6 +29,7 @@ FloatDTuple = Tuple[float, float, float, float]
 
 
 class BeamngExecutor:
+
     def __init__(
         self,
         test_generator: TestGenerator = None,
@@ -64,13 +67,21 @@ class BeamngExecutor:
         self.waypoints_crossed_index = 0
         self.waypoints = []
 
-        assert os.path.exists(self.beamng_home), "Path to beamng home does not exist: {}".format(beamng_home)
-        assert os.path.exists(self.beamng_user), "Path to beamng user does not exist: {}".format(beamng_user)
+        assert os.path.exists(
+            self.beamng_home
+        ), "Path to beamng home does not exist: {}".format(beamng_home)
+        assert os.path.exists(
+            self.beamng_user
+        ), "Path to beamng user does not exist: {}".format(beamng_user)
 
         # TODO Add checks with default setup. This requires a call to BeamNGpy resolve  (~/Documents/BeamNG.research)
-        if self.beamng_user is not None and not os.path.exists(os.path.join(self.beamng_user, "tech.key")):
+        if self.beamng_user is not None and not os.path.exists(
+            os.path.join(self.beamng_user, "tech.key")
+        ):
             self.logger.warn(
-                "{} is missing but is required to use BeamNG.research".format(os.path.join(self.beamng_user, "tech.key"))
+                "{} is missing but is required to use BeamNG.research".format(
+                    os.path.join(self.beamng_user, "tech.key")
+                )
             )
 
         # Runtime Monitor about relative movement of the car
@@ -92,7 +103,9 @@ class BeamngExecutor:
         return node[0], node[1], node[2]
 
     def points_distance(self, p1, p2):
-        return np.linalg.norm(np.subtract(self.get_node_coords(p1), self.get_node_coords(p2)))
+        return np.linalg.norm(
+            np.subtract(self.get_node_coords(p1), self.get_node_coords(p2))
+        )
 
     def _is_the_car_moving(self, last_state):
         """Check if the car moved in the past 10 seconds"""
@@ -118,7 +131,9 @@ class BeamngExecutor:
             else:
                 return True
 
-    def reset(self, skip_generation: bool = False, individual: Individual = None) -> None:
+    def reset(
+        self, skip_generation: bool = False, individual: Individual = None
+    ) -> None:
 
         self.agent_state = None
         self.last_throttle = 0.0
@@ -143,12 +158,16 @@ class BeamngExecutor:
         if not skip_generation:
 
             if individual is None:
-                assert self.test_generator is not None, "Test generator is not instantiated"
+                assert (
+                    self.test_generator is not None
+                ), "Test generator is not instantiated"
 
                 start_time = time.perf_counter()
                 self.logger.debug("Start generating track")
                 self.track = self.test_generator.generate()
-                self.logger.debug("Track generated: {:.2f}s".format(time.perf_counter() - start_time))
+                self.logger.debug(
+                    "Track generated: {:.2f}s".format(time.perf_counter() - start_time)
+                )
             else:
                 self.track = individual.get_representation()
 
@@ -156,23 +175,33 @@ class BeamngExecutor:
             # For the execution we need the interpolated points
             self.brewer.setup_road_nodes(nodes)
             self.waypoints = [self.get_node_coords(node) for node in nodes]
-            self.waypoint_goal = BeamNGWaypoint("waypoint_goal", self.get_node_coords(nodes[-1]))
+            self.waypoint_goal = BeamNGWaypoint(
+                "waypoint_goal", self.get_node_coords(nodes[-1])
+            )
 
             # Note This changed since BeamNG.research
-            beamng_levels = LevelsFolder(os.path.join(self.beamng_user, BEAMNG_VERSION, "levels"))
+            beamng_levels = LevelsFolder(
+                os.path.join(self.beamng_user, BEAMNG_VERSION, "levels")
+            )
             maps.beamng_levels = beamng_levels
             maps.beamng_map = maps.beamng_levels.get_map("tig")
             # maps.print_paths()
 
             maps.install_map_if_needed()
-            maps.beamng_map.generated().write_items(self.brewer.decal_road.to_json() + "\n" + self.waypoint_goal.to_json())
+            maps.beamng_map.generated().write_items(
+                self.brewer.decal_road.to_json() + "\n" + self.waypoint_goal.to_json()
+            )
 
             cameras = BeamNGCarCameras()
             self.vehicle_state_reader = VehicleStateReader(
-                self.vehicle, self.brewer.beamng, additional_sensors=cameras.cameras_array
+                self.vehicle,
+                self.brewer.beamng,
+                additional_sensors=cameras.cameras_array,
             )
 
-            self.brewer.vehicle_start_pose = self.brewer.road_points.vehicle_start_pose()
+            self.brewer.vehicle_start_pose = (
+                self.brewer.road_points.vehicle_start_pose()
+            )
 
             if self.logs_folder_name is not None:
                 simulation_id = time.strftime("%Y-%m-%d--%H-%M-%S", time.localtime())
@@ -220,11 +249,17 @@ class BeamngExecutor:
                     else:
                         self.speed_limit = self.max_speed
 
-                    throttle = np.clip(a=1.0 - steering**2 - (speed / self.speed_limit) ** 2, a_min=0.0, a_max=1.0)
+                    throttle = np.clip(
+                        a=1.0 - steering**2 - (speed / self.speed_limit) ** 2,
+                        a_min=0.0,
+                        a_max=1.0,
+                    )
 
                 self.last_throttle = throttle
 
-                self.vehicle.control(throttle=float(throttle), steering=float(steering), brake=0)
+                self.vehicle.control(
+                    throttle=float(throttle), steering=float(steering), brake=0
+                )
 
             self.brewer.beamng.step(self.brewer.params.beamng_steps)
 
@@ -235,7 +270,9 @@ class BeamngExecutor:
         self.sim_data_collector.collect_current_data(oob_bb=True)
         last_state: SimulationDataRecord = self.sim_data_collector.states[-1]
         # Target point reached
-        target_reached = self.points_distance(last_state.pos, self.waypoint_goal.position) < 8.0
+        target_reached = (
+            self.points_distance(last_state.pos, self.waypoint_goal.position) < 8.0
+        )
         is_oob = last_state.is_oob
         if target_reached or is_oob:
             return True, 1 if target_reached else 0
@@ -245,12 +282,17 @@ class BeamngExecutor:
         try:
             self.episode_steps += 1
             done, success_bit = self.is_game_over()
-            img = self.vehicle_state_reader.sensors["cam_center"]["colour"].convert("RGB")
+            img = self.vehicle_state_reader.sensors["cam_center"]["colour"].convert(
+                "RGB"
+            )
             self.original_image = np.array(img)
             info = {
                 "is_success": success_bit,
                 "track": self.track,
-                "pos": (self.sim_data_collector.states[-1].pos[0], self.sim_data_collector.states[-1].pos[1]),
+                "pos": (
+                    self.sim_data_collector.states[-1].pos[0],
+                    self.sim_data_collector.states[-1].pos[1],
+                ),
                 "speed": self.sim_data_collector.states[-1].vel_kmh,
                 "lateral_position": self.sim_data_collector.oob_monitor.oob_distance(),
             }
@@ -313,7 +355,10 @@ class BeamngExecutor:
 
     # Calculate the points to guide the AI from the road points
     def calculate_script(self, road_points):
-        script_points = [self.get_script_point(road_points[i], road_points[i + 1]) for i in range(len(road_points) - 1)]
+        script_points = [
+            self.get_script_point(road_points[i], road_points[i + 1])
+            for i in range(len(road_points) - 1)
+        ]
         assert len(script_points) == len(road_points) - 1
         # Get the last script point
         script_points += [self.get_script_point(road_points[-1], road_points[-2])]
@@ -322,18 +367,11 @@ class BeamngExecutor:
 
         script = [{"x": orig[0], "y": orig[1], "z": 0.5, "t": 0}]
         i = 1
-        # time = 0.18
         time = 0.18
-        # goal = len(street_1.nodes) - 1
-        # goal = len(brewer.road_points.right) - 1
         goal = len(script_points) - 1
 
         while i < goal:
             node = {
-                # 'x': street_1.nodes[i][0],
-                # 'y': street_1.nodes[i][1],
-                # 'x': brewer.road_points.right[i][0],
-                # 'y': brewer.road_points.right[i][1],
                 "x": script_points[i][0],
                 "y": script_points[i][1],
                 "z": 0.5,
@@ -345,4 +383,6 @@ class BeamngExecutor:
         return script
 
     def distance(self, p1, p2):
-        return np.linalg.norm(np.subtract(self.get_node_coords(p1), self.get_node_coords(p2)))
+        return np.linalg.norm(
+            np.subtract(self.get_node_coords(p1), self.get_node_coords(p2))
+        )
