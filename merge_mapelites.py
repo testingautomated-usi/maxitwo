@@ -6,36 +6,65 @@ from typing import List
 
 import numpy as np
 
-from config import AGENT_TYPES, MAX_ANGLE, MIN_ANGLE, MOCK_SIM_NAME, NUM_CONTROL_NODES, NUM_SAMPLED_POINTS, SIMULATOR_NAMES
+from config import (
+    MOCK_SIM_NAME,
+    SIMULATOR_NAMES,
+    NUM_CONTROL_NODES,
+    MAX_ANGLE,
+    NUM_SAMPLED_POINTS,
+    AGENT_TYPES,
+)
 from envs.beamng.config import MAP_SIZE
-from factories import make_agent, make_env, make_test_generator
+from factories import make_test_generator, make_env, make_agent
 from global_log import GlobalLog
 from test_generators.mapelites.config import (
-    CURVATURE_FEATURE_NAME,
     FEATURE_COMBINATIONS,
-    QUALITY_METRICS_NAMES,
     TURNS_COUNT_FEATURE_NAME,
+    CURVATURE_FEATURE_NAME,
+    QUALITY_METRICS_NAMES,
 )
 from test_generators.mapelites.individual import Individual
 from test_generators.mapelites.mapelites import MapElites
 from utils.randomness import set_random_seed
 from utils.report_utils import (
-    get_name_min_and_max_2d_features,
-    load_individual_report,
     load_mapelites_report,
     plot_map_of_elites,
     plot_raw_map_of_elites,
     resize_map_of_elites,
     write_mapelites_report,
+    get_name_min_and_max_2d_features,
+    load_individual_report,
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--folder", help="Path of the folder where the logs are", type=str, default="logs")
-parser.add_argument("--filepaths", nargs="+", help="Paths of the folders where the reports are", type=str, required=True)
-parser.add_argument("--output-dir", help="Output folder where the merged heatmap will be saved", type=str, default=None)
-parser.add_argument("--execute", help="Run all individuals in the merged population", action="store_true", default=False)
 parser.add_argument(
-    "--quality-metric", help="Name of the quality metric", type=str, choices=QUALITY_METRICS_NAMES, default=None
+    "--folder", help="Path of the folder where the logs are", type=str, default="logs"
+)
+parser.add_argument(
+    "--filepaths",
+    nargs="+",
+    help="Paths of the folders where the reports are",
+    type=str,
+    required=True,
+)
+parser.add_argument(
+    "--output-dir",
+    help="Output folder where the merged heatmap will be saved",
+    type=str,
+    default=None,
+)
+parser.add_argument(
+    "--execute",
+    help="Run all individuals in the merged population",
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
+    "--quality-metric",
+    help="Name of the quality metric",
+    type=str,
+    choices=QUALITY_METRICS_NAMES,
+    default=None,
 )
 parser.add_argument(
     "--min-quality-metric",
@@ -56,7 +85,12 @@ parser.add_argument(
     choices=["avg", "min", "max"],
     default=None,
 )
-parser.add_argument("--load-probability-map", help="Load probability map", action="store_true", default=False)
+parser.add_argument(
+    "--load-probability-map",
+    help="Load probability map",
+    action="store_true",
+    default=False,
+)
 parser.add_argument(
     "--multiply-probabilities",
     help="Multiply probabilities when merging the probability maps (by default the probabilities are averaged)",
@@ -76,18 +110,52 @@ parser.add_argument(
     default=False,
 )
 # run arguments
-parser.add_argument("--env-name", help="Should be the name of the third simulator", type=str, choices=SIMULATOR_NAMES)
-parser.add_argument("--donkey-exe-path", help="Path to the donkey simulator executor", type=str, default=None)
-parser.add_argument("--udacity-exe-path", help="Path to the udacity simulator executor", type=str, default=None)
-parser.add_argument("--beamng-user-path", help="Beamng user path", type=str, default=None)
-parser.add_argument("--beamng-home-path", help="Beamng home path", type=str, default=None)
-parser.add_argument("--seed", help="Random seed", type=int, default=-1)
-parser.add_argument("--add-to-port", help="Modify default simulator port", type=int, default=-1)
-parser.add_argument("--headless", help="Headless simulation", action="store_true", default=False)
-parser.add_argument("--agent-type", help="Agent type", type=str, choices=AGENT_TYPES, default="random")
-parser.add_argument("--test-generator", help="Which test generator to use", type=str, choices=["random"], default="random")
 parser.add_argument(
-    "--model-path", help="Path to agent model with extension (only if agent_type == 'supervised')", type=str, default=None
+    "--env-name",
+    help="Should be the name of the third simulator",
+    type=str,
+    choices=SIMULATOR_NAMES,
+)
+parser.add_argument(
+    "--donkey-exe-path",
+    help="Path to the donkey simulator executor",
+    type=str,
+    default=None,
+)
+parser.add_argument(
+    "--udacity-exe-path",
+    help="Path to the udacity simulator executor",
+    type=str,
+    default=None,
+)
+parser.add_argument(
+    "--beamng-user-path", help="Beamng user path", type=str, default=None
+)
+parser.add_argument(
+    "--beamng-home-path", help="Beamng home path", type=str, default=None
+)
+parser.add_argument("--seed", help="Random seed", type=int, default=-1)
+parser.add_argument(
+    "--add-to-port", help="Modify default simulator port", type=int, default=-1
+)
+parser.add_argument(
+    "--headless", help="Headless simulation", action="store_true", default=False
+)
+parser.add_argument(
+    "--agent-type", help="Agent type", type=str, choices=AGENT_TYPES, default="random"
+)
+parser.add_argument(
+    "--test-generator",
+    help="Which test generator to use",
+    type=str,
+    choices=["random"],
+    default="random",
+)
+parser.add_argument(
+    "--model-path",
+    help="Path to agent model with extension (only if agent_type == 'supervised')",
+    type=str,
+    default=None,
 )
 parser.add_argument(
     "--predict-throttle",
@@ -102,6 +170,28 @@ parser.add_argument(
     choices=FEATURE_COMBINATIONS,
     default="{}-{}".format(TURNS_COUNT_FEATURE_NAME, CURVATURE_FEATURE_NAME),
 )
+# cyclegan options
+parser.add_argument(
+    "--cyclegan-experiment-name",
+    type=str,
+    default=None,
+    help="name of the experiment. It decides where to store samples and models",
+)
+parser.add_argument(
+    "--gpu-ids",
+    type=str,
+    default="-1",
+    help="gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU",
+)
+parser.add_argument(
+    "--cyclegan-checkpoints-dir", type=str, default=None, help="models are saved here"
+)
+parser.add_argument(
+    "--cyclegan-epoch",
+    type=str,
+    default=-1,
+    help="which epoch to load? set to latest to use latest cached model",
+)
 
 args = parser.parse_args()
 
@@ -112,12 +202,14 @@ if __name__ == "__main__":
     assert len(args.filepaths) <= 2, "Cannot merge more than 2 maps"
 
     for filepath in args.filepaths:
-        assert os.path.exists(os.path.join(args.folder, filepath)), "{} does not exist".format(
+        assert os.path.exists(
             os.path.join(args.folder, filepath)
-        )
+        ), "{} does not exist".format(os.path.join(args.folder, filepath))
 
     if args.output_dir is None:
-        merged_heatmap_filepath = os.path.join(args.folder, "merged_{}".format("_".join(args.filepaths)))
+        merged_heatmap_filepath = os.path.join(
+            args.folder, "merged_{}".format("_".join(args.filepaths))
+        )
     else:
         merged_heatmap_filepath = os.path.join(args.folder, args.output_dir)
 
@@ -130,24 +222,48 @@ if __name__ == "__main__":
     for filepath in args.filepaths:
         if args.load_probability_map or args.quality_metric is not None:
             report_filepath = os.path.join(args.folder, filepath)
-            assert os.path.exists(report_filepath), "Report file {} does not exist".format(report_filepath)
+            assert os.path.exists(
+                report_filepath
+            ), "Report file {} does not exist".format(report_filepath)
             reports.append(load_individual_report(filepath=report_filepath))
         else:
-            all_report_files = glob.glob(os.path.join(args.folder, filepath, "report_iterations_*.json"))
-            report_file = list(filter(lambda rf: int(rf[rf.rindex("_") + 1 : rf.rindex(".")]) > 0, all_report_files))
-            assert len(report_file) == 1, "Only one match supported. Found: {}".format(len(report_file))
+            all_report_files = glob.glob(
+                os.path.join(args.folder, filepath, "report_iterations_*.json")
+            )
+            report_file = list(
+                filter(
+                    lambda rf: int(rf[rf.rindex("_") + 1 : rf.rindex(".")]) > 0,
+                    all_report_files,
+                )
+            )
+            assert len(report_file) == 1, "Only one match supported. Found: {}".format(
+                len(report_file)
+            )
             report_file = report_file[0]
             reports.append(load_mapelites_report(filepath=report_file))
 
     individuals_in_population: List[Individual] = []
     for i, report in enumerate(reports):
         if args.load_probability_map or args.quality_metric is not None:
-            all_individuals_report = [individual for feature_bin in report.keys() for individual in report[feature_bin]]
+            all_individuals_report = [
+                individual
+                for feature_bin in report.keys()
+                for individual in report[feature_bin]
+            ]
             individuals_in_population.extend(all_individuals_report)
-            logg.info("Report #{}, all individuals report: {}".format(i, len(all_individuals_report)))
+            logg.info(
+                "Report #{}, all individuals report: {}".format(
+                    i, len(all_individuals_report)
+                )
+            )
         else:
             individuals_in_population.extend(
-                list(filter(lambda ind: ind.id in report["ids_in_population"], report["individuals"]))
+                list(
+                    filter(
+                        lambda ind: ind.id in report["ids_in_population"],
+                        report["individuals"],
+                    )
+                )
             )
             logg.info(
                 "Report #{}, all individuals length: {}, individuals in population: {}".format(
@@ -166,7 +282,12 @@ if __name__ == "__main__":
 
     logg.info(
         "Feature x: {} in [{}, {}], Feature y: {} in [{}, {}]".format(
-            feature_x_name, min_feature_x, max_feature_x, feature_y_name, min_feature_y, max_feature_y
+            feature_x_name,
+            min_feature_x,
+            max_feature_x,
+            feature_y_name,
+            min_feature_y,
+            max_feature_y,
         )
     )
 
@@ -175,9 +296,18 @@ if __name__ == "__main__":
     fill_value = None
     for i, report in enumerate(reports):
         if args.load_probability_map or args.quality_metric is not None:
-            individuals = [individual for feature_bin in report.keys() for individual in report[feature_bin]]
+            individuals = [
+                individual
+                for feature_bin in report.keys()
+                for individual in report[feature_bin]
+            ]
         else:
-            individuals = list(filter(lambda ind: ind.id in report["ids_in_population"], report["individuals"]))
+            individuals = list(
+                filter(
+                    lambda ind: ind.id in report["ids_in_population"],
+                    report["individuals"],
+                )
+            )
 
         resized_map, resized_map_counts, fill_value = resize_map_of_elites(
             x_axis_min=min_feature_x,
@@ -202,8 +332,12 @@ if __name__ == "__main__":
     resized_map_counts_1 = resized_maps_counts[0]
     resized_map_counts_2 = resized_maps_counts[1]
 
-    valued_keys_1 = set(filter(lambda key: resized_map_1[key] != fill_value, resized_map_1.keys()))
-    valued_keys_2 = set(filter(lambda key: resized_map_2[key] != fill_value, resized_map_2.keys()))
+    valued_keys_1 = set(
+        filter(lambda key: resized_map_1[key] != fill_value, resized_map_1.keys())
+    )
+    valued_keys_2 = set(
+        filter(lambda key: resized_map_2[key] != fill_value, resized_map_2.keys())
+    )
 
     bins_intersection = valued_keys_1.intersection(valued_keys_2)
     logg.info("# Keys that conflict: {}".format(len(bins_intersection)))
@@ -220,14 +354,32 @@ if __name__ == "__main__":
                 if args.load_probability_map:
                     if args.multiply_probabilities:
                         values[k] = value_1 * value_2
+                    elif args.weighted_average_probabilities:
+                        assert (
+                            k in resized_map_counts_1 and k in resized_map_counts_2
+                        ), "Resized map counts do not have the key {}".format(k)
+                        assert (
+                            resized_map_counts_1[k] != 0
+                            and resized_map_counts_2[k] != 0
+                        ), "Resized map counts cannot be zero"
+                        values[k] = (
+                            value_1 * resized_map_counts_1[k]
+                            + value_2 * resized_map_counts_2[k]
+                        ) / (resized_map_counts_1[k] + resized_map_counts_2[k])
                     else:
                         values[k] = (value_1 + value_2) / 2
                 elif args.quality_metric is not None:
-                    assert args.min_quality_metric is not None, "min_quality_metric argument is needed for normalization"
-                    assert args.max_quality_metric is not None, "max_quality_metric argument is needed for normalization"
+                    assert (
+                        args.min_quality_metric is not None
+                    ), "min_quality_metric argument is needed for normalization"
+                    assert (
+                        args.max_quality_metric is not None
+                    ), "max_quality_metric argument is needed for normalization"
                     assert (
                         args.min_quality_metric < args.max_quality_metric
-                    ), "Min quality metric {} > Max quality metric {}".format(args.min_quality_metric, args.max_quality_metric)
+                    ), "Min quality metric {} > Max quality metric {}".format(
+                        args.min_quality_metric, args.max_quality_metric
+                    )
                     normalized_value_1 = (value_1 - args.min_quality_metric) / (
                         args.max_quality_metric - args.min_quality_metric
                     )
@@ -263,9 +415,15 @@ if __name__ == "__main__":
                     elif args.quality_metric_merge == "max":
                         values[k] = max(normalized_value_1, normalized_value_2)
                     else:
-                        raise RuntimeError("Unknown quality_metric_merge: {}".format(args.quality_metric_merge))
+                        raise RuntimeError(
+                            "Unknown quality_metric_merge: {}".format(
+                                args.quality_metric_merge
+                            )
+                        )
 
-                    assert 0 <= values[k] <= 1, "Value {} not in bounds, index: {}, merge type: {}".format(
+                    assert (
+                        0 <= values[k] <= 1
+                    ), "Value {} not in bounds, index: {}, merge type: {}".format(
                         values[k], k, args.quality_metric_merge
                     )
 
@@ -276,9 +434,17 @@ if __name__ == "__main__":
                 )
 
             elif resized_map_1[k] != fill_value:
-                raise NotImplementedError("First map has a key {} different from fill value {}".format(k, fill_value))
+                raise NotImplementedError(
+                    "First map has a key {} different from fill value {}".format(
+                        k, fill_value
+                    )
+                )
             elif resized_map_2[k] != fill_value:
-                raise NotImplementedError("Second map has a key {} different from fill value {}".format(k, fill_value))
+                raise NotImplementedError(
+                    "Second map has a key {} different from fill value {}".format(
+                        k, fill_value
+                    )
+                )
             else:
                 values[k] = fill_value
     else:
@@ -286,7 +452,11 @@ if __name__ == "__main__":
         # resized_map_1 and resized_map_2 have the same keys
         for k in resized_map_1.keys():
             if k in bins_intersection:
-                logg.info("Conflict of keys between the two maps: {} vs {}".format(resized_map_1[k], resized_map_2[k]))
+                logg.info(
+                    "Conflict of keys between the two maps: {} vs {}".format(
+                        resized_map_1[k], resized_map_2[k]
+                    )
+                )
                 if resized_map_1[k] < resized_map_2[k]:
                     fitness_values[k] = resized_map_1[k]
                 else:
@@ -357,6 +527,7 @@ if __name__ == "__main__":
         failure_probability=args.failure_probability,
         quality_metric=args.quality_metric,
         quality_metric_merge=args.quality_metric_merge,
+        weighted_average_probabilities=args.weighted_average_probabilities,
     )
 
     plot_raw_map_of_elites(
@@ -370,6 +541,7 @@ if __name__ == "__main__":
         failure_probability=args.failure_probability,
         quality_metric_merge=args.quality_metric_merge,
         quality_metric=args.quality_metric,
+        weighted_average_probabilities=args.weighted_average_probabilities,
     )
 
     if args.execute:
@@ -402,6 +574,10 @@ if __name__ == "__main__":
             beamng_user=args.beamng_user_path,
             headless=args.headless,
             beamng_autopilot=args.agent_type == "autopilot",
+            cyclegan_experiment_name=args.cyclegan_experiment_name,
+            gpu_ids=args.gpu_ids,
+            cyclegan_checkpoints_dir=args.cyclegan_checkpoints_dir,
+            cyclegan_epoch=args.cyclegan_epoch,
         )
         agent = make_agent(
             env_name=args.env_name,
@@ -431,5 +607,11 @@ if __name__ == "__main__":
             test_generator=test_generator,
             merged_heatmap=True,
             feature_combination=args.feature_combination,
+            cyclegan_experiment_name=args.cyclegan_experiment_name,
+            gpu_ids=args.gpu_ids,
+            cyclegan_checkpoints_dir=args.cyclegan_checkpoints_dir,
+            cyclegan_epoch=args.cyclegan_epoch,
         )
-        mapelites.execute_individuals_and_place_in_map(individuals=individuals_in_population)
+        mapelites.execute_individuals_and_place_in_map(
+            individuals=individuals_in_population
+        )
