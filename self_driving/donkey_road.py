@@ -7,6 +7,7 @@ from self_driving.road import Road
 
 
 class DonkeyRoad(Road):
+
     def __init__(self, road_width: int, road_points: List[Point], control_points: List[Point]):
         super().__init__(road_width=road_width, road_points=road_points, control_points=control_points)
 
@@ -24,6 +25,7 @@ class DonkeyRoad(Road):
         # for DONKEY we only need x, y, z
         to_string = []
         for t in cr:
-            s = "{},{},{}".format(t[0], t[1], t[2])
+            s = '{},{},{}'.format(t[0], t[1], t[2])
             to_string.append(s)
-        return "@".join(to_string)
+        return '@'.join(to_string)
+

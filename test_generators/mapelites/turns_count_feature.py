@@ -7,7 +7,10 @@ from test_generators.mapelites.feature import Feature
 
 
 class TurnsCountFeature(Feature):
-    def __init__(self, turns_count: int, turns_count_bin: int = None, mock: bool = False):
+
+    def __init__(
+        self, turns_count: int, turns_count_bin: int = None, mock: bool = False
+    ):
         super(TurnsCountFeature, self).__init__(feature_bin=turns_count_bin)
         self.name = TURNS_COUNT_FEATURE_NAME
         self.turns_count = turns_count

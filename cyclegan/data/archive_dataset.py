@@ -1,10 +1,10 @@
 import os.path
 
-from PIL import Image
-
 from config import SIMULATOR_NAMES
 from cyclegan.data.base_dataset import BaseDataset, get_transform
-from utils.dataset_utils import crop, load_archive
+from PIL import Image
+
+from utils.dataset_utils import load_archive, crop
 
 
 class ArchiveDataset(BaseDataset):
@@ -23,11 +23,11 @@ class ArchiveDataset(BaseDataset):
         assert not opt.isTrain, "Archive dataset not supported during training"
         assert opt.archive_filepath is not None, "archive_filepath not specified"
         assert os.path.exists(opt.archive_filepath), "archive_filepath {} does not exist".format(opt.archive_filepath)
-        archive_path = opt.archive_filepath[: opt.archive_filepath.rindex(os.sep)]
-        archive_name = opt.archive_filepath[opt.archive_filepath.rindex(os.sep) + 1 :]
+        archive_path = opt.archive_filepath[:opt.archive_filepath.rindex(os.sep)]
+        archive_name = opt.archive_filepath[opt.archive_filepath.rindex(os.sep) + 1:]
         numpy_dict = load_archive(archive_path=archive_path, archive_name=archive_name)
-        self.observations = numpy_dict["observations"]
-        self.actions = numpy_dict["actions"]
+        self.observations = numpy_dict['observations']
+        self.actions = numpy_dict['actions']
         self.env_name = None
         for sim_name in SIMULATOR_NAMES:
             if sim_name in archive_name:
@@ -35,7 +35,7 @@ class ArchiveDataset(BaseDataset):
                 break
         assert self.env_name is not None, "Env name {} not found in {}".format(SIMULATOR_NAMES, archive_name)
 
-        input_nc = self.opt.output_nc if self.opt.direction == "BtoA" else self.opt.input_nc
+        input_nc = self.opt.output_nc if self.opt.direction == 'BtoA' else self.opt.input_nc
         self.transform = get_transform(opt, grayscale=(input_nc == 1))
 
     def __getitem__(self, index):
@@ -53,7 +53,11 @@ class ArchiveDataset(BaseDataset):
         obs_pil = Image.fromarray(obs_cropped)
         obs_tensor = self.transform(obs_pil)
 
-        return {"A": obs_tensor, "A_paths": [], "actions": self.actions[index]}
+        return {
+            'A': obs_tensor,
+            'A_paths': [],
+            'actions': self.actions[index]
+        }
 
     def __len__(self):
         """Return the total number of images in the dataset."""

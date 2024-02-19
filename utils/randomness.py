@@ -1,9 +1,7 @@
-import random
-
-import numpy as np
-import tensorflow as tf
-
 from global_log import GlobalLog
+import tensorflow as tf
+import numpy as np
+import random
 
 
 def set_random_seed(seed: int) -> None:

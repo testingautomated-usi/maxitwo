@@ -10,13 +10,14 @@ from test_generators.mapelites.steering_angle_feature import StdSteeringAngleFea
 
 
 class MockEvaluator(Evaluator):
+
     def __init__(self, feature_combination: str):
         super(MockEvaluator, self).__init__(feature_combination=feature_combination)
         self.logger = GlobalLog("mock_evaluator")
 
     def run_sim(self, individual: Individual) -> None:
 
-        self.logger.info("Executing individual with id {}".format(individual.id))
+        self.logger.info('Executing individual with id {}'.format(individual.id))
 
         # TODO: possibly add a sleep
 

@@ -6,7 +6,13 @@ from test_generators.mapelites.fitness import Fitness
 
 
 class LateralPositionFitness(Fitness):
-    def __init__(self, lateral_positions: List[float], min_lateral_position: float = None, mock: bool = False):
+
+    def __init__(
+        self,
+        lateral_positions: List[float],
+        min_lateral_position: float = None,
+        mock: bool = False,
+    ):
         super(LateralPositionFitness, self).__init__()
         self.lateral_positions = lateral_positions
         self.min_lateral_position = min_lateral_position
@@ -18,8 +24,14 @@ class LateralPositionFitness(Fitness):
         if not self.mock:
             if self.min_lateral_position is not None:
                 return self.min_lateral_position
-            assert len(self.lateral_positions) > 0, "List of lateral positions cannot be empty"
-            return round(min(self.lateral_positions), 4) if round(min(self.lateral_positions), 4) > 0 else -0.1
+            assert (
+                len(self.lateral_positions) > 0
+            ), "List of lateral positions cannot be empty"
+            return (
+                round(min(self.lateral_positions), 4)
+                if round(min(self.lateral_positions), 4) > 0
+                else -0.1
+            )
         return self.mock_value
 
     def get_min_value(self) -> float:

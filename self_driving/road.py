@@ -1,7 +1,7 @@
 import copy
 import random
 from abc import ABC, abstractmethod
-from typing import Dict, Generator, Iterator, List, Tuple
+from typing import List, Tuple, Dict, Iterator
 
 import numpy as np
 from shapely.geometry import Point
@@ -14,6 +14,7 @@ from self_driving.road_polygon import RoadPolygon
 
 
 class Road(ABC):
+
     def __init__(
         self,
         road_width: int,
@@ -29,15 +30,17 @@ class Road(ABC):
 
     @abstractmethod
     def get_concrete_representation(self, to_plot: bool = False) -> List[Tuple4F]:
-        raise NotImplemented("Not implemented")
+        raise NotImplementedError("Not implemented")
 
     @abstractmethod
-    def get_inverse_concrete_representation(self, to_plot: bool = False) -> List[Tuple4F]:
-        raise NotImplemented("Not implemented")
+    def get_inverse_concrete_representation(
+        self, to_plot: bool = False
+    ) -> List[Tuple4F]:
+        raise NotImplementedError("Not implemented")
 
     @abstractmethod
     def serialize_concrete_representation(self, cr: List[Tuple4F]) -> str:
-        raise NotImplemented("Not implemented")
+        raise NotImplementedError("Not implemented")
 
     @staticmethod
     def get_road_points_from_concrete(cr: List[Tuple4F]) -> List[Point]:
@@ -87,11 +90,20 @@ class Road(ABC):
 
     # FIXME: a bit dirty, copied from deepjanus_test_generator
     def is_valid(self) -> bool:
-        return RoadPolygon.from_nodes(self.get_concrete_representation(to_plot=True)).is_valid() and self.road_bbox.contains(
-            RoadPolygon.from_nodes([(cp.x, cp.y, cp.z, self.road_width) for cp in self.control_points[1:-1]])
+        return RoadPolygon.from_nodes(
+            self.get_concrete_representation(to_plot=True)
+        ).is_valid() and self.road_bbox.contains(
+            RoadPolygon.from_nodes(
+                [
+                    (cp.x, cp.y, cp.z, self.road_width)
+                    for cp in self.control_points[1:-1]
+                ]
+            )
         )
 
-    def mutate_gene(self, index: int, lower_bound: int, upper_bound: int, xy_prob: float = 0.5) -> Tuple[int, int]:
+    def mutate_gene(
+        self, index: int, lower_bound: int, upper_bound: int, xy_prob: float = 0.5
+    ) -> Tuple[int, int]:
         mutated_point = copy.deepcopy(self.control_points[index])
         # Choose the mutation extent
         mut_value = random.randint(a=lower_bound, b=upper_bound)
@@ -101,14 +113,19 @@ class Road(ABC):
 
         if random.random() < xy_prob:
             index_mutated = 0
-            mutated_point = Point(mutated_point.x + mut_value, mutated_point.y, mutated_point.z)
+            mutated_point = Point(
+                mutated_point.x + mut_value, mutated_point.y, mutated_point.z
+            )
         else:
             index_mutated = 1
-            mutated_point = Point(mutated_point.x, mutated_point.y + mut_value, mutated_point.z)
+            mutated_point = Point(
+                mutated_point.x, mutated_point.y + mut_value, mutated_point.z
+            )
 
         self.control_points[index] = mutated_point
         road_points = catmull_rom(
-            [(cp.x, cp.y, cp.z, self.road_width) for cp in self.control_points[1:]], num_spline_points=NUM_SAMPLED_POINTS
+            [(cp.x, cp.y, cp.z, self.road_width) for cp in self.control_points[1:]],
+            num_spline_points=NUM_SAMPLED_POINTS,
         )
         self.road_points = [Point(rp[0], rp[1]) for rp in road_points]
         return index_mutated, mut_value
@@ -116,12 +133,17 @@ class Road(ABC):
     def undo_mutation(self, index: int, index_mutated: int, mut_value: int) -> None:
         mutated_point = copy.deepcopy(self.control_points[index])
         if index_mutated == 0:
-            mutated_point = Point(mutated_point.x - mut_value, mutated_point.y, mutated_point.z)
+            mutated_point = Point(
+                mutated_point.x - mut_value, mutated_point.y, mutated_point.z
+            )
         else:
-            mutated_point = Point(mutated_point.x, mutated_point.y - mut_value, mutated_point.z)
+            mutated_point = Point(
+                mutated_point.x, mutated_point.y - mut_value, mutated_point.z
+            )
         self.control_points[index] = mutated_point
         road_points = catmull_rom(
-            [(cp.x, cp.y, cp.z, self.road_width) for cp in self.control_points[1:]], num_spline_points=NUM_SAMPLED_POINTS
+            [(cp.x, cp.y, cp.z, self.road_width) for cp in self.control_points[1:]],
+            num_spline_points=NUM_SAMPLED_POINTS,
         )
         self.road_points = [Point(rp[0], rp[1], rp[2]) for rp in road_points]
 
@@ -145,7 +167,9 @@ class Road(ABC):
 
     def __eq__(self, other: "Road") -> bool:
         if isinstance(other, Road):
-            return not self.are_control_points_different(other_control_points=other.control_points)
+            return not self.are_control_points_different(
+                other_control_points=other.control_points
+            )
         raise RuntimeError("other {} is not an road".format(type(other)))
 
     def __hash__(self) -> int:
@@ -157,7 +181,9 @@ class Road(ABC):
         at_1 = np.arctan2(v1[1], v1[0])
         return at_1 - at_0
 
-    def compute_angle_distance_pairs_for_each_point(self) -> List[Tuple[float, float, List[Point]]]:
+    def compute_angle_distance_pairs_for_each_point(
+        self,
+    ) -> List[Tuple[float, float, List[Point]]]:
         result = []
         v1 = np.subtract(self.road_points[1], self.road_points[0])
         for i in range(len(self.road_points) - 1):
@@ -165,7 +191,9 @@ class Road(ABC):
             v1 = np.subtract(self.road_points[i + 1], self.road_points[i])
             angle = self.compute_angle_distance(v0=v0, v1=v1)
             distance = np.linalg.norm(v1)
-            result.append((angle, distance, [self.road_points[i + 1], self.road_points[i]]))
+            result.append(
+                (angle, distance, [self.road_points[i + 1], self.road_points[i]])
+            )
         return result
 
     @staticmethod
@@ -187,7 +215,9 @@ class Road(ABC):
     # - groups smaller than 10 elements
     @staticmethod
     def first_super_grouper(
-        it: Iterator[List[str]], first_segment_threshold: int, second_segment_threshold: int
+        it: Iterator[List[str]],
+        first_segment_threshold: int,
+        second_segment_threshold: int,
     ) -> Iterator[List[str]]:
         prev = None
         group = []
@@ -197,7 +227,11 @@ class Road(ABC):
             elif len(item) < second_segment_threshold and item[0] == "s":
                 item = [prev[-1]] * len(item)
                 group.extend(item)
-            elif len(item) < first_segment_threshold and item[0] != "s" and prev[-1] == item[0]:
+            elif (
+                len(item) < first_segment_threshold
+                and item[0] != "s"
+                and prev[-1] == item[0]
+            ):
                 item = [prev[-1]] * len(item)
                 group.extend(item)
             else:
@@ -211,7 +245,9 @@ class Road(ABC):
     # - groups of points belonging to the same category
     # - groups smaller than 10 elements
     @staticmethod
-    def second_super_grouper(it: Iterator[List[str]], first_segment_threshold: int) -> Iterator[List[str]]:
+    def second_super_grouper(
+        it: Iterator[List[str]], first_segment_threshold: int
+    ) -> Iterator[List[str]]:
         prev = None
         group = []
         for item in it:
@@ -254,9 +290,13 @@ class Road(ABC):
 
         groups = self.grouper(lst=turns)
         first_super_group = self.first_super_grouper(
-            it=groups, first_segment_threshold=first_segment_threshold, second_segment_threshold=second_segment_threshold
+            it=groups,
+            first_segment_threshold=first_segment_threshold,
+            second_segment_threshold=second_segment_threshold,
         )
-        second_super_group = self.second_super_grouper(it=first_super_group, first_segment_threshold=first_segment_threshold)
+        second_super_group = self.second_super_grouper(
+            it=first_super_group, first_segment_threshold=first_segment_threshold
+        )
 
         num_turns = 0
         w = 5

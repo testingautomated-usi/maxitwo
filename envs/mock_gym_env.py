@@ -2,10 +2,10 @@ import gym
 import numpy as np
 from gym import spaces
 
-from custom_types import ObserveData
-from envs.udacity.config import INPUT_DIM, MAX_STEERING
+from envs.udacity.config import MAX_STEERING, INPUT_DIM
 from global_log import GlobalLog
 from test_generators.mapelites.individual import Individual
+from custom_types import ObserveData
 
 
 class MockGymEnv(gym.Env):
@@ -16,10 +16,14 @@ class MockGymEnv(gym.Env):
 
     def __init__(self):
 
-        self.logger = GlobalLog("MockGymEnv")
+        self.logger = GlobalLog('MockGymEnv')
 
         # steering + throttle, action space must be symmetric
-        self.action_space = spaces.Box(low=np.array([-MAX_STEERING, -1]), high=np.array([MAX_STEERING, 1]), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=np.array([-MAX_STEERING, -1]),
+            high=np.array([MAX_STEERING, 1]),
+            dtype=np.float32
+        )
 
         self.observation_space = spaces.Box(low=0, high=255, shape=INPUT_DIM, dtype=np.uint8)
 
@@ -36,11 +40,11 @@ class MockGymEnv(gym.Env):
     def reset(self, skip_generation: bool = False, individual: Individual = None) -> np.ndarray:
         return self.observation_space.sample()
 
-    def render(self, mode="human"):
+    def render(self, mode='human'):
         """
         :param mode: (str)
         """
-        if mode == "rgb_array":
+        if mode == 'rgb_array':
             return self.observation_space.sample()
         return None
 

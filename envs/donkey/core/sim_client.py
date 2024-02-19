@@ -23,12 +23,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-"""
+'''
 author: Tawn Kramer
 date: 9 Dec 2019
 file: sim_client.py
 notes: wraps a tcp socket client with a handler to talk to the unity donkey simulator
-"""
+'''
 import json
 
 from envs.donkey.core.client import SDClient
@@ -37,7 +37,7 @@ from global_log import GlobalLog
 
 class SimClient(SDClient):
     """
-    Handles messages from a single TCP client.
+      Handles messages from a single TCP client.
     """
 
     def __init__(self, address, socket_local_address, msg_handler):
@@ -53,7 +53,7 @@ class SimClient(SDClient):
         # we connect right away
         msg_handler.on_connect(self)
 
-        self.logger = GlobalLog("SimClient")
+        self.logger = GlobalLog('SimClient')
 
     def queue_message(self, msg):
         # right now, no queue. Just immediate send.
@@ -69,7 +69,7 @@ class SimClient(SDClient):
         if self.msg_handler:
             self.msg_handler.on_disconnect()
             self.msg_handler = None
-            self.logger.info("Connection dropped")
+            self.logger.info('Connection dropped')
 
         self.close()
 

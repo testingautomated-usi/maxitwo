@@ -1,10 +1,10 @@
 import logging
-import os
 
 from beamngpy import BeamNGpy, Scenario, Vehicle
 from beamngpy.sensors import Camera
 
-from envs.beamng.config import BASE_PORT, BEAMNG_VERSION
+
+from envs.beamng.config import BASE_PORT
 from envs.beamng.decal_road import DecalRoad
 from envs.beamng.simulation_data import SimulationParams
 from global_log import GlobalLog
@@ -18,7 +18,15 @@ class BeamNGCamera:
         self.pose: Pose = Pose()
         self.camera = camera
         if not self.camera:
-            self.camera = Camera((0, 0, 0), (0, 0, 0), 120, (1280, 1280), colour=True, depth=True, annotation=True)
+            self.camera = Camera(
+                (0, 0, 0),
+                (0, 0, 0),
+                120,
+                (1280, 1280),
+                colour=True,
+                depth=True,
+                annotation=True,
+            )
         self.beamng = beamng
 
     def get_rgb_image(self):
@@ -43,11 +51,15 @@ class BeamNGBrewer:
         if self.reuse_beamng:
             # This represents the running BeamNG simulator. Since we use launch=True this should automatically
             # shut down when the main python process exits or when we call self.beamng_process.stop()
-            self.beamng_process = BeamNGpy("localhost", BASE_PORT + add_to_port, home=beamng_home, user=beamng_user)
+            self.beamng_process = BeamNGpy(
+                "localhost", BASE_PORT + add_to_port, home=beamng_home, user=beamng_user
+            )
             self.beamng_process = self.beamng_process.open(launch=True)
 
         # This is used to bring up each simulation without restarting the simulator
-        self.beamng = BeamNGpy("localhost", 64256 + add_to_port, home=beamng_home, user=beamng_user)
+        self.beamng = BeamNGpy(
+            "localhost", 64256 + add_to_port, home=beamng_home, user=beamng_user
+        )
 
         self.beamng_home = beamng_home
         self.beamng_user = beamng_user
@@ -86,7 +98,9 @@ class BeamNGBrewer:
         else:
             steps = 60  # real time
 
-        self.params = SimulationParams(beamng_steps=steps, delay_msec=int(steps * 0.05 * 1000))
+        self.params = SimulationParams(
+            beamng_steps=steps, delay_msec=int(steps * 0.05 * 1000)
+        )
         self.vehicle_start_pose = Pose()
 
     def setup_road_nodes(self, road_nodes):
@@ -116,7 +130,11 @@ class BeamNGBrewer:
         # After 1.18 to make a scenario one needs a running instance of BeamNG
         self.scenario = Scenario("tig", "tigscenario")
         if self.vehicle:
-            self.scenario.add_vehicle(self.vehicle, pos=self.vehicle_start_pose.pos, rot=self.vehicle_start_pose.rot)
+            self.scenario.add_vehicle(
+                self.vehicle,
+                pos=self.vehicle_start_pose.pos,
+                rot=self.vehicle_start_pose.rot,
+            )
 
         if self.camera:
             self.scenario.add_camera(self.camera.camera, self.camera.name)

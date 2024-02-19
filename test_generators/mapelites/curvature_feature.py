@@ -7,6 +7,7 @@ from test_generators.mapelites.feature import Feature
 
 
 class CurvatureFeature(Feature):
+
     def __init__(self, curvature: float, curvature_bin: int = None, mock: bool = False):
         super(CurvatureFeature, self).__init__(feature_bin=curvature_bin)
         self.name = CURVATURE_FEATURE_NAME

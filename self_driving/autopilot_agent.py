@@ -1,16 +1,18 @@
 import time
 from typing import Dict
 
+from config import DONKEY_SIM_NAME, BEAMNG_SIM_NAME, UDACITY_SIM_NAME
+from custom_types import GymEnv
+
 import numpy as np
 
-from config import BEAMNG_SIM_NAME, DONKEY_SIM_NAME, UDACITY_SIM_NAME
-from custom_types import GymEnv
-from envs.donkey.config import KD_DONKEY, KI_DONKEY, KP_DONKEY
-from envs.udacity.config import KD_UDACITY, KI_UDACITY, KP_UDACITY
+from envs.donkey.config import KP_DONKEY, KD_DONKEY, KI_DONKEY
+from envs.udacity.config import KP_UDACITY, KD_UDACITY, KI_UDACITY
 from self_driving.agent import Agent
 
 
 class AutopilotAgent(Agent):
+
     def __init__(self, env: GymEnv, env_name: str, max_speed: int, min_speed: int):
         super().__init__(env=env, env_name=env_name)
 
@@ -26,26 +28,26 @@ class AutopilotAgent(Agent):
 
             delta = time.perf_counter() - self.previous_time
 
-            diff_cte = (state["cte_pid"] - self.previous_cte) / delta
-            self.previous_cte = state["cte_pid"]
+            diff_cte = (state['cte_pid'] - self.previous_cte) / delta
+            self.previous_cte = state['cte_pid']
             self.previous_time = time.perf_counter()
 
-            self.total_error += state["cte_pid"]
+            self.total_error += state['cte_pid']
 
             if self.env_name == DONKEY_SIM_NAME:
-                steering = (-KP_DONKEY * state["cte_pid"]) - (KD_DONKEY * diff_cte) - (KI_DONKEY * self.total_error)
+                steering = (-KP_DONKEY * state['cte_pid']) - (KD_DONKEY * diff_cte) - (KI_DONKEY * self.total_error)
             elif self.env_name == UDACITY_SIM_NAME:
-                steering = (-KP_UDACITY * state["cte_pid"]) - (KD_UDACITY * diff_cte) - (KI_UDACITY * self.total_error)
+                steering = (-KP_UDACITY * state['cte_pid']) - (KD_UDACITY * diff_cte) - (KI_UDACITY * self.total_error)
             else:
-                raise RuntimeError("Unknown env name: {}".format(self.env_name))
+                raise RuntimeError('Unknown env name: {}'.format(self.env_name))
 
-            speed = state["speed"]
+            speed = state['speed']
             if speed > self.max_speed:
                 speed_limit = self.min_speed  # slow down
             else:
                 speed_limit = self.max_speed
 
-            throttle = np.clip(a=1.0 - steering**2 - (speed / speed_limit) ** 2, a_min=0.0, a_max=1.0)
+            throttle = np.clip(a=1.0 - steering ** 2 - (speed / speed_limit) ** 2, a_min=0.0, a_max=1.0)
 
             action = np.asarray([steering, throttle])
 
@@ -55,3 +57,4 @@ class AutopilotAgent(Agent):
             return np.asarray([state["steering"], state["throttle"]])
 
         return self.env.action_space.sample()
+

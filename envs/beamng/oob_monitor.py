@@ -64,7 +64,7 @@ class OutOfBoundsMonitor:
         percentage outside of the road."""
         return self.oob_percentage(wrt=wrt) > self.tolerance
 
-    def oob_distance(self, wrt="right") -> float:
+    def oob_distance(self,  wrt="right") -> float:
         """Returns the difference between the width of a lane and
         the distance between the car and the center of the lane."""
         car_point = Point(self.vehicle_state_reader.get_state().pos)
@@ -101,20 +101,20 @@ class OutOfBoundsMonitor:
 
         # x coordinates of the bounding box of the car.
         boundary_x = [
-            car_bbox["rear_bottom_left"][0],
-            car_bbox["rear_bottom_right"][0],
-            car_bbox["front_bottom_right"][0],
-            car_bbox["front_bottom_left"][0],
-            car_bbox["rear_bottom_left"][0],
+            car_bbox['rear_bottom_left'][0],
+            car_bbox['rear_bottom_right'][0],
+            car_bbox['front_bottom_right'][0],
+            car_bbox['front_bottom_left'][0],
+            car_bbox['rear_bottom_left'][0],
         ]
 
         # y coordinates of the bounding box of the car.
         boundary_y = [
-            car_bbox["rear_bottom_left"][1],
-            car_bbox["rear_bottom_right"][1],
-            car_bbox["front_bottom_right"][1],
-            car_bbox["front_bottom_left"][1],
-            car_bbox["rear_bottom_left"][1],
+            car_bbox['rear_bottom_left'][1],
+            car_bbox['rear_bottom_right'][1],
+            car_bbox['front_bottom_right'][1],
+            car_bbox['front_bottom_left'][1],
+            car_bbox['rear_bottom_left'][1],
         ]
 
         return Polygon(zip(boundary_x, boundary_y))

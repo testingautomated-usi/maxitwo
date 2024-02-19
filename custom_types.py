@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Tuple, Dict
 
 import gym
 import numpy as np

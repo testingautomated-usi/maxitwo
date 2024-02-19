@@ -9,6 +9,8 @@ if [ ! -d "logs/$folder_name" ]; then
   exit 1
 fi
 
+# FIXME: Cross-validation not supported yet
+
 # BEAMNG
 python merge_maps_simulator.py --env-name beamng --folder logs/$folder_name \
     --failure-probability --filepaths mapelites_beamng_search mapelites_migration_beamng_udacity_search

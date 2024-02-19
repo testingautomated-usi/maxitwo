@@ -30,6 +30,7 @@ Base class for a handler expected by SimClient
 
 
 class IMesgHandler(object):
+
     def on_connect(self, client):
         pass
 

@@ -2,26 +2,25 @@ import argparse
 import os
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
+
 from scipy.stats import wasserstein_distance, wilcoxon
 from statsmodels.stats.power import TTestIndPower
 
+from config import MODEL_NAMES, DAVE2_NAME
 from effect_size import cohend
 from global_log import GlobalLog
 from utils.dataset_utils import load_archive
 
+import matplotlib.pyplot as plt
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--archive-path", help="Path of the folder where the logs are", type=str, default="logs")
-parser.add_argument("--archive-names", nargs="+", help="Paths of the folders where the reports are", type=str, required=True)
-parser.add_argument("--output-dir", help="Output folder where the merged heatmap will be saved", type=str, default=None)
-parser.add_argument(
-    "--predict-throttle",
-    help="Predict steering and throttle. Model to load must have been trained using an output dimension of 2",
-    action="store_true",
-    default=False,
-)
-parser.add_argument("--show-plot", help="Show histograms", action="store_true", default=False)
+parser.add_argument('--archive-path', help='Path of the folder where the logs are', type=str, default='logs')
+parser.add_argument('--model-name', help='Model name (without the extension)', choices=MODEL_NAMES, type=str, default=DAVE2_NAME, required=True)
+parser.add_argument('--archive-names', nargs="+", help='Paths of the folders where the reports are', type=str, required=True)
+parser.add_argument('--output-dir', help='Output folder where the merged heatmap will be saved', type=str, default=None)
+parser.add_argument('--predict-throttle', help='Predict steering and throttle. Model to load must have been trained using an output dimension of 2', action='store_true', default=False)
+parser.add_argument('--show-plot', help='Show histograms', action='store_true', default=False)
 
 args = parser.parse_args()
 
@@ -40,12 +39,13 @@ if __name__ == "__main__":
 
     assert len(args.archive_names) <= 3, "Cannot compute offline metrics among more than 3 maps"
 
-    for archive_name in args.archive_names:
-        assert os.path.exists(os.path.join(args.archive_path, archive_name)), "{} does not exist".format(
-            os.path.join(args.archive_path, archive_name)
-        )
+    sim_or_real = "real" if "fake" in args.archive_names[0] else "sim"
 
-    logg = GlobalLog("compute_offline_metrics")
+    for archive_name in args.archive_names:
+        assert os.path.exists(os.path.join(args.archive_path, archive_name)), \
+            "{} does not exist".format(os.path.join(args.archive_path, archive_name))
+
+    logg = GlobalLog('compute_offline_metrics')
 
     all_prediction_errors = []
 
@@ -74,36 +74,63 @@ if __name__ == "__main__":
     step_size = 0.04
     bins = int(range_prediction_error[1] / step_size)
 
-    plt.figure()
-    plt.rcParams.update({"font.size": 35, "font.weight": "bold"})
-    # it will be the env name: e.g. archive name "offline-evaluation-fake-beamng.npz"
-    name_1 = args.archive_names[0].split("-")[-1].split(".")[0]
-    name_2 = args.archive_names[1].split("-")[-1].split(".")[0]
+    fig = plt.figure()
+    plt.rcParams.update({'font.size': 35, 'font.weight': 'bold'})
+    fig.set_size_inches(15, 10)
+
+    # it will be the env name: e.g. archive name "offline-evaluation-fake-beamng-dave2.npz"
+    name_1 = args.archive_names[0].split('-')[-2].split('.')[0]
+    name_2 = args.archive_names[1].split('-')[-2].split('.')[0]
+
+    name_1_filename = name_1
+    name_2_filename = name_2
 
     # https://stackoverflow.com/questions/24391892/printing-subscript-in-python
-    if name_1 == "beamng":
+    if name_1 == 'beamng':
         name_1 = "DS1".translate(str.maketrans("1", "₁"))
-    elif name_1 == "udacity":
+        name_1_filename = "ds1"
+    elif name_1 == 'udacity':
         name_1 = "DS2".translate(str.maketrans("2", "₂"))
+        name_1_filename = "ds2"
 
-    if name_2 == "donkey":
-        name_2 = "HDT"
+    if name_2 == 'donkey':
+        name_2 = 'HDT'
+        name_2_filename = "hdt"
 
     n_1, bin_edges_1, patches_1 = plt.hist(
-        x=prediction_errors_1, bins=bins, range=range_prediction_error, density=True, alpha=0.3, color="red", label=name_1
+        x=prediction_errors_1,
+        bins=bins,
+        range=range_prediction_error,
+        density=True,
+        alpha=0.3,
+        color="red",
+        label=name_1
     )
     n_2, bin_edges_2, patches_2 = plt.hist(
-        x=prediction_errors_2, bins=bins, range=range_prediction_error, density=True, alpha=0.3, color="blue", label=name_2
+        x=prediction_errors_2,
+        bins=bins,
+        range=range_prediction_error,
+        density=True,
+        alpha=0.3,
+        color="blue",
+        label=name_2
     )
     plt.legend()
-    plt.xlabel("Error magnitude", weight="bold")
-    plt.ylabel("Error percentage", weight="bold")
+    plt.xlabel('Error magnitude', weight='bold')
+    plt.ylabel('Error percentage', weight='bold')
 
     plt.xlim(range_prediction_error)
     # plt.ylim([min(min(n_1), min(n_2)), max(max(n_1), max(n_2))])
     plt.ylim([0, 18])
     if len(args.archive_names) != 3 and args.show_plot:
         plt.show()
+    elif len(args.archive_names) != 3:
+        plt.savefig(
+            os.path.join(
+                args.archive_path,
+                f"offline_{args.model_name}_{name_1_filename}_{name_2_filename}_{sim_or_real}.png"
+            ), dpi=200
+        )
     else:
         plt.close()
 
@@ -114,19 +141,22 @@ if __name__ == "__main__":
     if len(args.archive_names) == 3:
         prediction_errors_3 = all_prediction_errors[2]
 
-        logg.info(
-            "Providing more than 2 archives: merging the first two and computing metrics "
-            "between the merged and the third archive"
-        )
+        logg.info("Providing more than 2 archives: merging the first two and computing metrics "
+                  "between the merged and the third archive")
 
         prediction_errors_merged = prediction_errors_1 + prediction_errors_2
 
-        name_3 = args.archive_names[2].split("-")[-1].split(".")[0]
-        if name_3 == "donkey":
-            name_3 = "HDT"
+        name_3 = args.archive_names[2].split('-')[-2].split('.')[0]
+        name_2_filename = name_3
 
-        plt.figure()
-        plt.rcParams.update({"font.size": 35, "font.weight": "bold"})
+        if name_3 == 'donkey':
+            name_3 = 'HDT'
+            name_3_filename = "hdt"
+
+        fig = plt.figure()
+        plt.rcParams.update({'font.size': 35, 'font.weight': 'bold'})
+        fig.set_size_inches(15, 10)
+
         n_merged, bin_edges_merged, patches_merged = plt.hist(
             x=prediction_errors_merged,
             bins=bins,
@@ -134,27 +164,42 @@ if __name__ == "__main__":
             density=True,
             alpha=0.3,
             color="red",
-            label="DSS",
+            label="DSS"
         )
         n_3, bin_edges_3, patches_3 = plt.hist(
-            x=prediction_errors_3, bins=bins, range=range_prediction_error, density=True, alpha=0.3, color="blue", label=name_3
+            x=prediction_errors_3,
+            bins=bins,
+            range=range_prediction_error,
+            density=True,
+            alpha=0.3,
+            color="blue",
+            label=name_3
         )
         plt.legend()
-        plt.xlabel("Error magnitude", weight="bold")
-        plt.ylabel("Error percentage", weight="bold")
+        plt.xlabel('Error magnitude', weight='bold')
+        plt.ylabel('Error percentage', weight='bold')
         plt.xlim(range_prediction_error)
         # plt.ylim([min(min(n_1), min(n_2)), max(max(n_1), max(n_2))])
         plt.ylim([0, 18])
         if args.show_plot:
             plt.show()
         else:
+            plt.savefig(
+                os.path.join(
+                    args.archive_path,
+                    f"offline_{args.model_name}_dss_{name_3_filename}_{sim_or_real}.png"
+                ), dpi=200
+            )
             plt.close()
 
         bin_positions_merged = get_bin_positions(bins_edges=bin_edges_merged)
         bin_positions_3 = get_bin_positions(bins_edges=bin_edges_3)
 
         distance = wasserstein_distance(
-            u_values=bin_positions_merged, v_values=bin_positions_3, u_weights=n_merged, v_weights=n_3
+            u_values=bin_positions_merged,
+            v_values=bin_positions_3,
+            u_weights=n_merged,
+            v_weights=n_3
         )
         logg.info("Distance: {}".format(distance))
 
@@ -165,25 +210,24 @@ if __name__ == "__main__":
         logg.info("Cohen's d effect size among prediction errors: {}, {}".format(estimate, magnitude))
 
         if p_value > 0.05 and abs(estimate) > 0.0:
-            power = analysis.power(
-                effect_size=estimate, nobs1=len(prediction_errors_merged) + len(prediction_errors_3), alpha=alpha
-            )
+            power = analysis.power(effect_size=estimate, nobs1=len(prediction_errors_merged) + len(prediction_errors_3), alpha=alpha)
             logg.info("Parametric power at alpha {}: {}".format(alpha, power))
 
             nobs = analysis.solve_power(effect_size=estimate, power=desired_power, alpha=alpha)
-            logg.info(
-                "Number of observations required to have power {} at alpha {}: {}. "
-                "Current number of observations: {}".format(
-                    desired_power, alpha, nobs, len(prediction_errors_merged) + len(prediction_errors_3)
-                )
-            )
+            logg.info("Number of observations required to have power {} at alpha {}: {}. "
+                      "Current number of observations: {}".format(desired_power, alpha, nobs, len(prediction_errors_merged) + len(prediction_errors_3)))
 
     else:
 
         bin_positions_1 = get_bin_positions(bins_edges=bin_edges_1)
         bin_positions_2 = get_bin_positions(bins_edges=bin_edges_2)
 
-        distance = wasserstein_distance(u_values=bin_positions_1, v_values=bin_positions_2, u_weights=n_1, v_weights=n_2)
+        distance = wasserstein_distance(
+            u_values=bin_positions_1,
+            v_values=bin_positions_2,
+            u_weights=n_1,
+            v_weights=n_2
+        )
         logg.info("Distance: {}".format(distance))
 
         statistic, p_value = wilcoxon(x=n_1, y=n_2)
@@ -194,15 +238,9 @@ if __name__ == "__main__":
 
         if p_value > 0.05 and abs(estimate) > 0.0:
 
-            power = analysis.power(
-                effect_size=estimate, nobs1=len(prediction_errors_1) + len(prediction_errors_2), alpha=alpha
-            )
+            power = analysis.power(effect_size=estimate, nobs1=len(prediction_errors_1) + len(prediction_errors_2), alpha=alpha)
             logg.info("Parametric power at alpha {}: {}".format(alpha, power))
 
             nobs = analysis.solve_power(effect_size=estimate, power=desired_power, alpha=alpha)
-            logg.info(
-                "Number of observations required to have power {} at alpha {}: {}. "
-                "Current number of observations: {}".format(
-                    desired_power, alpha, nobs, len(prediction_errors_1) + len(prediction_errors_2)
-                )
-            )
+            logg.info("Number of observations required to have power {} at alpha {}: {}. "
+                      "Current number of observations: {}".format(desired_power, alpha, nobs, len(prediction_errors_1) + len(prediction_errors_2)))

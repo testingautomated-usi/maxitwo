@@ -22,17 +22,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 # Original author: Tawn Kramer
 import base64
-import copy
 import time
+import copy
 from io import BytesIO
-from typing import Dict, List, Tuple
-
+from typing import List, Tuple
 import numpy as np
 from PIL import Image
 
-from custom_types import ObserveData
 from envs.donkey.config import INPUT_DIM, MAX_CTE_ERROR
 from envs.donkey.core.fps import FPSTimer
 from envs.donkey.core.message import IMesgHandler
@@ -42,6 +41,7 @@ from global_log import GlobalLog
 from self_driving.road import Road
 from test_generators.mapelites.individual import Individual
 from test_generators.test_generator import TestGenerator
+from custom_types import ObserveData
 
 
 class DonkeyUnitySimController:
@@ -62,7 +62,9 @@ class DonkeyUnitySimController:
         self.socket_local_address = socket_local_address
 
         # Socket message handler
-        self.handler = DonkeyUnitySimHandler(test_generator=test_generator, seed=seed, simulator_scene=simulator_scene)
+        self.handler = DonkeyUnitySimHandler(
+            test_generator=test_generator, seed=seed, simulator_scene=simulator_scene
+        )
 
         self.client = SimClient(self.address, self.socket_local_address, self.handler)
         self.logger = GlobalLog("DonkeyUnitySimController")
@@ -80,9 +82,9 @@ class DonkeyUnitySimController:
             sleep_time += 0.1
             if sleep_time > 3:
                 self.logger.info(
-                    "Waiting for sim to start..." "if the simulation is running, press EXIT to go back to the menu"
+                    "Waiting for sim to start..."
+                    "if the simulation is running, press EXIT to go back to the menu"
                 )
-        # self.regen_track()
 
     def reset(self, skip_generation: bool = False, individual: Individual = None):
         self.handler.reset(skip_generation=skip_generation, individual=individual)
@@ -462,19 +464,22 @@ class DonkeyUnitySimHandler(IMesgHandler):
         """
         if data is not None:
             names = data["scene_names"]
-            assert self.simulator_scene.get_scene_name() in names, "{} not in the list of possible scenes {}".format(
+            assert (
+                self.simulator_scene.get_scene_name() in names
+            ), "{} not in the list of possible scenes {}".format(
                 self.simulator_scene.get_scene_name(), names
             )
             self.send_load_scene(self.simulator_scene.get_scene_name())
 
     def generate_track(self, generated_track: Road = None):
-        # self.send_pause_simulation()
 
         if generated_track is None:
             start_time = time.perf_counter()
             self.logger.debug("Start generating track")
             track = self.test_generator.generate()
-            self.logger.debug("Track generated: {:.2f}s".format(time.perf_counter() - start_time))
+            self.logger.debug(
+                "Track generated: {:.2f}s".format(time.perf_counter() - start_time)
+            )
             self.current_track = track
         else:
             self.current_track = generated_track
@@ -482,13 +487,14 @@ class DonkeyUnitySimHandler(IMesgHandler):
         track_string = self.current_track.serialize_concrete_representation(
             cr=self.current_track.get_concrete_representation()
         )
-        # self.send_restart_simulation()
 
         self.send_regen_track(track_string=track_string)
         self.track_strings.append(track_string)
         max_iterations = 1000
         time_elapsed = 0
-        while self.track_strings[-1] != self.current_track_string and max_iterations > 0:
+        while (
+            self.track_strings[-1] != self.current_track_string and max_iterations > 0
+        ):
             time.sleep(0.1)
             time_elapsed += 0.1
             if time_elapsed >= 1.0:
@@ -497,14 +503,20 @@ class DonkeyUnitySimHandler(IMesgHandler):
             max_iterations -= 1
 
         if max_iterations == 0:
-            assert self.track_strings[-1] == self.current_track_string, "Track generated {} != {} Track deployed".format(
+            assert (
+                self.track_strings[-1] == self.current_track_string
+            ), "Track generated {} != {} Track deployed".format(
                 self.track_strings[-1], self.current_track_string
             )
 
         time.sleep(1)
 
     def send_regen_track(self, track_string: str):
-        msg = {"msg_type": "regen_track", "track_string": track_string, "path_type": "point_path"}
+        msg = {
+            "msg_type": "regen_track",
+            "track_string": track_string,
+            "path_type": "point_path",
+        }
         self.queue_message(msg)
 
     def send_pause_simulation(self):
@@ -539,7 +551,12 @@ class DonkeyUnitySimHandler(IMesgHandler):
                 "brake": brake.__str__(),
             }
         else:
-            msg = {"msg_type": "control", "steering": steer.__str__(), "throttle": throttle.__str__(), "brake": "0.0"}
+            msg = {
+                "msg_type": "control",
+                "steering": steer.__str__(),
+                "throttle": throttle.__str__(),
+                "brake": "0.0",
+            }
         self.queue_message(msg)
 
     def send_reset_car(self):

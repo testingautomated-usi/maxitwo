@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union, List
 
 import numpy as np
 
@@ -7,7 +7,13 @@ from test_generators.mapelites.feature import Feature
 
 
 class StdSteeringAngleFeature(Feature):
-    def __init__(self, steering_angles: List[float], steering_angle_bin: int = None, mock: bool = False):
+
+    def __init__(
+        self,
+        steering_angles: List[float],
+        steering_angle_bin: int = None,
+        mock: bool = False,
+    ):
         super(StdSteeringAngleFeature, self).__init__(feature_bin=steering_angle_bin)
         self.name = STD_STEERING_ANGLE_FEATURE_NAME
         self.steering_angles = steering_angles
@@ -18,9 +24,7 @@ class StdSteeringAngleFeature(Feature):
         if not self.mock:
             assert (
                 self.steering_angles is not None and len(self.steering_angles) > 0
-            ) or self.feature_bin is not None, (
-                "Get steering angle needs either the list of steering angles or a steering angle value"
-            )
+            ) or self.feature_bin is not None, "Get steering angle needs either the list of steering angles or a steering angle value"
 
             if self.steering_angles is not None and len(self.steering_angles) > 0:
                 # casting to int for binning values into cells

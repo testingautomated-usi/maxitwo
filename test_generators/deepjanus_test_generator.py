@@ -3,35 +3,33 @@
 # by V. Riccio and P. Tonella
 # https://doi.org/10.1145/3368089.3409730
 import copy
-import math
 import time
 from random import randint
 from typing import List
-
-import numpy as np
 from shapely.geometry import Point
 
 from code_pipeline.visualization import RoadTestVisualizer
 from config import (
-    AGENT_TYPES,
-    BEAMNG_SIM_NAME,
-    DONKEY_SIM_NAME,
-    MAX_ANGLE,
-    NUM_CONTROL_NODES,
-    NUM_SAMPLED_POINTS,
     ROAD_WIDTH,
+    NUM_SAMPLED_POINTS,
+    NUM_CONTROL_NODES,
+    MAX_ANGLE,
     SEG_LENGTH,
-    UDACITY_SIM_NAME,
+    DONKEY_SIM_NAME,
+    AGENT_TYPES,
 )
-from custom_types import Tuple2F, Tuple4F
+from custom_types import Tuple4F, Tuple2F
+from self_driving.catmull_rom import catmull_rom
+from self_driving.road_utils import get_road
 from global_log import GlobalLog
 from self_driving.bbox import RoadBoundingBox
-from self_driving.catmull_rom import catmull_rom
+
+import math
+import numpy as np
+
 from self_driving.road import Road
 from self_driving.road_polygon import RoadPolygon
-from self_driving.road_utils import get_road
 from test_generators.test_generator import TestGenerator
-from utils.randomness import set_random_seed
 
 
 class JanusTestGenerator(TestGenerator):
@@ -49,7 +47,12 @@ class JanusTestGenerator(TestGenerator):
         max_angle=MAX_ANGLE,
         seg_length=SEG_LENGTH,
         num_spline_nodes=NUM_SAMPLED_POINTS,
-        initial_node=(125.0, 0.0, -28.0, ROAD_WIDTH),  # z = -28.0 (BeamNG), width = 8.0 (BeamNG)
+        initial_node=(
+            125.0,
+            0.0,
+            -28.0,
+            ROAD_WIDTH,
+        ),  # z = -28.0 (BeamNG), width = 8.0 (BeamNG)
         bbox_size=(0, 0, 250, 250),
     ):
         super().__init__(map_size=map_size)
@@ -91,7 +94,11 @@ class JanusTestGenerator(TestGenerator):
             attempt = 0
 
             while i_valid < self.num_control_nodes and attempt <= attempts:
-                nodes.append(self._get_next_node(nodes[-2], nodes[-1], self._get_next_max_angle(i_valid)))
+                nodes.append(
+                    self._get_next_node(
+                        nodes[-2], nodes[-1], self._get_next_max_angle(i_valid)
+                    )
+                )
                 road_polygon = RoadPolygon.from_nodes(nodes)
 
                 # budget is the number of iterations used to attempt to add a valid next control node
@@ -99,21 +106,31 @@ class JanusTestGenerator(TestGenerator):
                 budget = self.num_control_nodes - i_valid
                 assert budget >= 1
 
-                intersect_boundary = self.road_bbox.intersects_boundary(road_polygon.polygons[-1])
+                intersect_boundary = self.road_bbox.intersects_boundary(
+                    road_polygon.polygons[-1]
+                )
                 is_valid = road_polygon.is_valid() and (
-                    ((i_valid == 0) and intersect_boundary) or ((i_valid > 0) and not intersect_boundary)
+                    ((i_valid == 0) and intersect_boundary)
+                    or ((i_valid > 0) and not intersect_boundary)
                 )
                 while not is_valid and budget > 0:
                     nodes.pop()
                     budget -= 1
                     attempt += 1
 
-                    nodes.append(self._get_next_node(nodes[-2], nodes[-1], self._get_next_max_angle(i_valid)))
+                    nodes.append(
+                        self._get_next_node(
+                            nodes[-2], nodes[-1], self._get_next_max_angle(i_valid)
+                        )
+                    )
                     road_polygon = RoadPolygon.from_nodes(nodes)
 
-                    intersect_boundary = self.road_bbox.intersects_boundary(road_polygon.polygons[-1])
+                    intersect_boundary = self.road_bbox.intersects_boundary(
+                        road_polygon.polygons[-1]
+                    )
                     is_valid = road_polygon.is_valid() and (
-                        ((i_valid == 0) and intersect_boundary) or ((i_valid > 0) and not intersect_boundary)
+                        ((i_valid == 0) and intersect_boundary)
+                        or ((i_valid > 0) and not intersect_boundary)
                     )
 
                 if is_valid:
@@ -136,7 +153,9 @@ class JanusTestGenerator(TestGenerator):
         return nodes
 
     def is_valid(self, control_nodes, sample_nodes):
-        return RoadPolygon.from_nodes(sample_nodes).is_valid() and self.road_bbox.contains(
+        return RoadPolygon.from_nodes(
+            sample_nodes
+        ).is_valid() and self.road_bbox.contains(
             RoadPolygon.from_nodes(control_nodes[1:-1])
         )
 
@@ -150,7 +169,9 @@ class JanusTestGenerator(TestGenerator):
         if self.agent_type == "autopilot":
             # When collecting the training set invert the road such that the left and right curves are balanced
             if self.previous_road is not None:
-                self.logg.debug("Autopilot mode. Inverting previous road to get a more balanced training set")
+                self.logg.debug(
+                    "Autopilot mode. Inverting previous road to get a more balanced training set"
+                )
                 road_to_return = get_road(
                     road_points=list(reversed(self.previous_road.road_points)),
                     control_points=list(reversed(self.previous_road.control_points)),
@@ -173,7 +194,10 @@ class JanusTestGenerator(TestGenerator):
         control_points = [Point(node[0], node[1], node[2]) for node in control_nodes]
 
         self.previous_road = get_road(
-            road_points=road_points, control_points=control_points, road_width=ROAD_WIDTH, simulator_name=self.simulator_name
+            road_points=road_points,
+            control_points=control_points,
+            road_width=ROAD_WIDTH,
+            simulator_name=self.simulator_name,
         )
 
         return self.previous_road
@@ -198,9 +222,13 @@ class JanusTestGenerator(TestGenerator):
 
     def _get_next_xy(self, x0: float, y0: float, angle: float) -> Tuple2F:
         angle_rad = math.radians(angle)
-        return x0 + self.seg_length * math.cos(angle_rad), y0 + self.seg_length * math.sin(angle_rad)
+        return x0 + self.seg_length * math.cos(
+            angle_rad
+        ), y0 + self.seg_length * math.sin(angle_rad)
 
-    def _get_next_max_angle(self, i: int, threshold=NUM_INITIAL_SEGMENTS_THRESHOLD) -> float:
+    def _get_next_max_angle(
+        self, i: int, threshold=NUM_INITIAL_SEGMENTS_THRESHOLD
+    ) -> float:
         if i < threshold or i == self.num_control_nodes - 1:
             return 0
         else:
@@ -215,21 +243,25 @@ if __name__ == "__main__":
 
     # set_random_seed(seed=0)
 
-    for i in range(1):
+    for i in range(300):
 
         print("************ {} ************".format(i))
 
-        roadgen = JanusTestGenerator(map_size=map_size, simulator_name=sim_name, num_control_nodes=8)
+        roadgen = JanusTestGenerator(
+            map_size=map_size, simulator_name=sim_name, num_control_nodes=8
+        )
 
         start_time = time.perf_counter()
         road = roadgen.generate()
         concrete_representation = road.get_concrete_representation()
-        print([(cp.x, cp.y, cp.z) for cp in road.control_points])
         print("Time:", time.perf_counter() - start_time)
         print("Curvature:", road.compute_curvature())
         print("Num turns:", road.compute_num_turns())
 
         road_test_visualizer = RoadTestVisualizer(map_size=map_size)
         road_test_visualizer.visualize_road_test(
-            road=road, folder_path="../", filename="road_{}".format(i), plot_control_points=False
+            road=road,
+            folder_path="../",
+            filename="road_{}".format(i),
+            plot_control_points=False,
         )

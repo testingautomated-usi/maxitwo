@@ -1,6 +1,6 @@
 import copy
 import random
-from typing import Dict, List, Set, Tuple
+from typing import List, Tuple, Set, Dict
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from test_generators.mapelites.id_generator import IdGenerator
 
 
 class Individual:
+
     def __init__(self, road: Road, start_id: int = 1):
         self.id = IdGenerator.get_instance(start_count=start_id).get_id()
         self.features: Tuple[Feature, Feature] = None
@@ -53,7 +54,10 @@ class Individual:
         self.behavioural_metrics = behavioural_metrics
 
     def set_behavioural_metrics(
-        self, speeds: List[float], steering_angles: List[float], lateral_positions: List[float]
+        self,
+        speeds: List[float],
+        steering_angles: List[float],
+        lateral_positions: List[float],
     ) -> None:
         self.behavioural_metrics["speeds"] = speeds
         self.behavioural_metrics["steering_angles"] = steering_angles
@@ -77,7 +81,9 @@ class Individual:
             j += 1
             i = random.randint(a=prefix_len, b=length - 1)
             if j > 1000000:
-                raise RuntimeError("Mutation failed: attempted_genes: {}".format(attempted_genes))
+                raise RuntimeError(
+                    "Mutation failed: attempted_genes: {}".format(attempted_genes)
+                )
 
         attempted_genes.add(i)
         assert prefix_len <= i <= length - 1
@@ -92,20 +98,30 @@ class Individual:
         attempted_genes = set()
         length = len(mutated_individual.representation.control_points) - 2
 
-        gene_index = self._next_gene_index(attempted_genes=attempted_genes, prefix_len=4, length=length)
+        gene_index = self._next_gene_index(
+            attempted_genes=attempted_genes, prefix_len=4, length=length
+        )
 
         while gene_index != -1:
             index_mutated, mut_value = mutated_individual.representation.mutate_gene(
-                index=gene_index, lower_bound=-mutation_extent, upper_bound=mutation_extent
+                index=gene_index,
+                lower_bound=-mutation_extent,
+                upper_bound=mutation_extent,
             )
 
             attempt = 0
 
             is_valid = mutated_individual.representation.is_valid()
             while not is_valid and attempt < num_undo_attempts:
-                mutated_individual.representation.undo_mutation(gene_index, index_mutated, mut_value)
-                index_mutated, mut_value = mutated_individual.representation.mutate_gene(
-                    index=gene_index, lower_bound=-mutation_extent, upper_bound=mutation_extent
+                mutated_individual.representation.undo_mutation(
+                    gene_index, index_mutated, mut_value
+                )
+                index_mutated, mut_value = (
+                    mutated_individual.representation.mutate_gene(
+                        index=gene_index,
+                        lower_bound=-mutation_extent,
+                        upper_bound=mutation_extent,
+                    )
                 )
                 attempt += 1
                 is_valid = mutated_individual.representation.is_valid()
@@ -113,13 +129,17 @@ class Individual:
             if is_valid:
                 break
 
-            gene_index = self._next_gene_index(attempted_genes=attempted_genes, prefix_len=4, length=length)
+            gene_index = self._next_gene_index(
+                attempted_genes=attempted_genes, prefix_len=4, length=length
+            )
             # print('Gene index: {}'.format(gene_index))
 
         if gene_index == -1:
             raise RuntimeError("No gene can be mutated")
 
-        assert mutated_individual.representation.is_valid(), "Mutated individual is not valid"
+        assert (
+            mutated_individual.representation.is_valid()
+        ), "Mutated individual is not valid"
         assert mutated_individual.representation.are_control_points_different(
             other_control_points=backup_control_points
         ), "All control points are equal after mutation"
@@ -129,7 +149,9 @@ class Individual:
     def export(self) -> Dict:
         result = dict()
         result["id"] = self.id
-        result["features"] = [(feature.name, feature.get_value()) for feature in self.features]
+        result["features"] = [
+            (feature.name, feature.get_value()) for feature in self.features
+        ]
         result["fitness"] = (self.fitness.name, self.fitness.get_value())
         result["representation"] = self.representation.export()
         if len(self.behavioural_metrics) > 0:
