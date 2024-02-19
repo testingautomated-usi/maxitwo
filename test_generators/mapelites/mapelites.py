@@ -6,40 +6,59 @@ import os
 import platform
 import socket
 import time
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Dict
 
 import numpy as np
 
 from code_pipeline.mock_evaluator import MockEvaluator
 from code_pipeline.real_evaluator import RealEvaluator
 from code_pipeline.visualization import RoadTestVisualizer
-from config import BEAMNG_SIM_NAME, MAX_ANGLE, MIN_ANGLE, MOCK_SIM_NAME, NUM_CONTROL_NODES, NUM_SAMPLED_POINTS
+from config import (
+    NUM_CONTROL_NODES,
+    MAX_ANGLE,
+    NUM_SAMPLED_POINTS,
+    MOCK_SIM_NAME,
+    MIN_ANGLE,
+    BEAMNG_SIM_NAME,
+    UDACITY_SIM_NAME,
+    DONKEY_SIM_NAME,
+)
 from custom_types import GymEnv
 from envs.beamng.config import MAP_SIZE
-from factories import make_agent, make_env, make_test_generator
+from factories import make_env, make_agent, make_test_generator
 from global_log import GlobalLog
 from self_driving.agent import Agent
 from self_driving.road_utils import get_road
 from self_driving.supervised_agent import SupervisedAgent
-from test_generators.mapelites.config import CURVATURE_FEATURE_NAME, FEATURE_COMBINATIONS, TURNS_COUNT_FEATURE_NAME
+from test_generators.mapelites.config import (
+    FEATURE_COMBINATIONS,
+    CURVATURE_FEATURE_NAME,
+    TURNS_COUNT_FEATURE_NAME,
+)
 from test_generators.mapelites.feature_axis import FeatureAxis
 from test_generators.mapelites.individual import Individual
 from test_generators.test_generator import TestGenerator
-from utils.os_utils import kill_beamng_simulator
+from utils.os_utils import (
+    kill_beamng_simulator,
+    kill_udacity_simulator,
+    kill_donkey_simulator,
+)
 from utils.randomness import set_random_seed
+
 
 # FIXME: refactor, it is not a test generator (or road generator I should say), put it in another folder.
 #  Rename test_generators package with road_generator
 from utils.report_utils import (
+    write_mapelites_report,
     plot_map_of_elites,
     plot_raw_map_of_elites,
-    save_images_of_individuals,
     write_individual_report,
-    write_mapelites_report,
+    save_images_of_individuals,
 )
 
 
 class MapElites:
+
     def __init__(
         self,
         env: GymEnv,
@@ -53,7 +72,9 @@ class MapElites:
         iteration_runtime: int,
         test_generator: TestGenerator,
         mock_evaluator: bool = False,
-        feature_combination: str = "{}-{}".format(TURNS_COUNT_FEATURE_NAME, CURVATURE_FEATURE_NAME),
+        feature_combination: str = "{}-{}".format(
+            TURNS_COUNT_FEATURE_NAME, CURVATURE_FEATURE_NAME
+        ),
         merged_heatmap: bool = False,
         individual_migration: bool = False,
         seed: int = 0,
@@ -69,6 +90,10 @@ class MapElites:
         run_id: int = -1,
         str_datetime: str = None,
         collect_images: bool = False,
+        cyclegan_experiment_name: str = None,
+        gpu_ids: str = "-1",
+        cyclegan_checkpoints_dir: str = None,
+        cyclegan_epoch: int = None,
     ):
 
         assert filepath is not None, "Filepath must be a string"
@@ -76,38 +101,56 @@ class MapElites:
 
         if not merged_heatmap and not individual_migration:
             if run_id != -1 and str_datetime is not None:
-                self.filepath = os.path.join(filepath, "mapelites_{}_{}_{}".format(env_name, str_datetime, run_id))
+                self.filepath = os.path.join(
+                    filepath,
+                    "mapelites_{}_{}_{}".format(env_name, str_datetime, run_id),
+                )
             else:
                 self.filepath = os.path.join(
-                    filepath, "mapelites_{}_{}".format(env_name, datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+                    filepath,
+                    "mapelites_{}_{}".format(
+                        env_name, datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                    ),
                 )
         elif merged_heatmap:
             self.filepath = os.path.join(
-                filepath, "mapelites_merged_{}_{}".format(env_name, datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+                filepath,
+                "mapelites_merged_{}_{}".format(
+                    env_name, datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                ),
             )
         elif individual_migration:
             self.filepath = os.path.join(
-                filepath, "mapelites_migration_{}_{}".format(env_name, datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+                filepath,
+                "mapelites_migration_{}_{}".format(
+                    env_name, datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                ),
             )
 
         os.makedirs(name=self.filepath, exist_ok=False)
 
-        logging.basicConfig(filename=os.path.join(self.filepath, "log.txt"), filemode="w", level=logging.DEBUG)
+        logging.basicConfig(
+            filename=os.path.join(self.filepath, "log.txt"),
+            filemode="w",
+            level=logging.DEBUG,
+        )
 
         self.env = env
         self.env_name = env_name
         self.agent = agent
         self.min_angle = min_angle
         self.max_angle = max_angle
-        assert self.max_angle > self.min_angle, "Max angle of road must be > min angle {}".format(self.min_angle)
+        assert (
+            self.max_angle > self.min_angle
+        ), "Max angle of road must be > min angle {}".format(self.min_angle)
         self.population_size = population_size
         self.mutation_extent = mutation_extent
         self.feature_combination = feature_combination
         self.iteration_runtime = iteration_runtime
 
-        assert self.feature_combination in FEATURE_COMBINATIONS, "Feature combination {} not supported".format(
-            feature_combination
-        )
+        assert (
+            self.feature_combination in FEATURE_COMBINATIONS
+        ), "Feature combination {} not supported".format(feature_combination)
 
         self.logg = GlobalLog("MapElites")
         self.mock_evaluator = mock_evaluator
@@ -116,10 +159,14 @@ class MapElites:
 
         self.test_generator = test_generator
         self.population: Dict[Tuple[int, int], Individual] = dict()
-        self.population_with_all_individuals: Dict[Tuple[int, int], List[Individual]] = dict()
+        self.population_with_all_individuals: Dict[
+            Tuple[int, int], List[Individual]
+        ] = dict()
         self.fitness_values: Dict[Tuple[int, int], float] = dict()
         self.all_individuals: List[Individual] = []
-        self.feature_map = self.generate_feature_map(feature_combination=feature_combination)
+        self.feature_map = self.generate_feature_map(
+            feature_combination=feature_combination
+        )
 
         self.seed = seed
         self.port = port
@@ -131,6 +178,11 @@ class MapElites:
         self.beamng_autopilot = beamng_autopilot
         self.restart_beamng_every = restart_beamng_every
         self.restart_beamng_after_population = restart_beamng_after_population
+
+        self.cyclegan_experiment_name = cyclegan_experiment_name
+        self.gpu_ids = gpu_ids
+        self.cyclegan_checkpoints_dir = cyclegan_checkpoints_dir
+        self.cyclegan_epoch = cyclegan_epoch
 
         self.save_params()
 
@@ -167,9 +219,13 @@ class MapElites:
 
     @staticmethod
     def generate_feature_map(feature_combination: str) -> List[FeatureAxis]:
-        assert "-" in feature_combination, "The '-' symbol must be present in the feature_combination string"
+        assert (
+            "-" in feature_combination
+        ), "The '-' symbol must be present in the feature_combination string"
         feature_names = feature_combination.split("-")
-        return [FeatureAxis(bins=1, name=feature_name) for feature_name in feature_names]
+        return [
+            FeatureAxis(bins=1, name=feature_name) for feature_name in feature_names
+        ]
 
     def random_selection(self) -> Tuple[int, int]:
         """
@@ -177,10 +233,12 @@ class MapElites:
         The selection is done by selecting a random bin for each feature
         dimension, until a bin with a value is found.
         """
-        idx = np.random.choice(a=np.arange(start=0, stop=len(self.population.keys())), size=1)[0]
+        idx = np.random.choice(
+            a=np.arange(start=0, stop=len(self.population.keys())), size=1
+        )[0]
         return list(self.population.keys())[idx]
 
-    def run(self):
+    def run(self, last: bool = False):
 
         # 1. generate roads with angles binned
         # 2. place roads in map to have initial population -> for each road, execute sim, tuple of features,
@@ -194,25 +252,40 @@ class MapElites:
         self.generate_initial_population(start_time=start_time)
         if self.restart_beamng_after_population and self.env_name == BEAMNG_SIM_NAME:
             # Indeed the reset runtime slows down with the number of resets
-            self.logg.info("Restarting BeamNG to speed up the simulations. Restart after generating initial population.")
-            self.restart_simulator()
+            self.logg.info(
+                "Restarting BeamNG to speed up the simulations. Restart after generating initial population."
+            )
+            self.restart_simulator(env_name=self.env_name)
 
         # iteration counter
         iteration = 0
 
         while iteration <= self.iteration_runtime:
-            self.logg.info("Time elapsed: {:.2f}s".format(time.perf_counter() - start_time))
+            self.logg.info(
+                "Time elapsed: {:.2f}s".format(time.perf_counter() - start_time)
+            )
             feature_bin = self.random_selection()
 
             self.population[feature_bin].selected_counter += 1
             parent = self.population[feature_bin]
-            self.logg.info(f"Iteration {iteration}: Selecting individual {parent.id} at {feature_bin}")
+            self.logg.info(
+                f"Iteration {iteration}: Selecting individual {parent.id} at {feature_bin}"
+            )
 
-            self.logg.debug("Before mutation: {}".format([(cp.x, cp.y, cp.z) for cp in parent.representation.control_points]))
+            self.logg.debug(
+                "Before mutation: {}".format(
+                    [(cp.x, cp.y, cp.z) for cp in parent.representation.control_points]
+                )
+            )
             # mutate the individual
             mutated_individual = parent.mutate(mutation_extent=self.mutation_extent)
             self.logg.debug(
-                "After mutation: {}".format([(cp.x, cp.y, cp.z) for cp in mutated_individual.representation.control_points])
+                "After mutation: {}".format(
+                    [
+                        (cp.x, cp.y, cp.z)
+                        for cp in mutated_individual.representation.control_points
+                    ]
+                )
             )
 
             self.execute_individual(individual=mutated_individual)
@@ -220,22 +293,52 @@ class MapElites:
             self.all_individuals.append(mutated_individual)
 
             # place the new individual in the map of elites
-            self.place_in_mapelites(individual=mutated_individual, parent_feature_bin=feature_bin, iteration=iteration)
+            self.place_in_mapelites(
+                individual=mutated_individual,
+                parent_feature_bin=feature_bin,
+                iteration=iteration,
+            )
 
-            if iteration != 0 and iteration % self.restart_beamng_every == 0 and self.env_name == BEAMNG_SIM_NAME:
+            if (
+                iteration != 0
+                and iteration % self.restart_beamng_every == 0
+                and self.env_name == BEAMNG_SIM_NAME
+            ):
                 # Indeed the reset runtime slows down with the number of resets
-                self.logg.info("Restarting BeamNG to speed up the simulations. Iterations: {}".format(iteration))
-                self.restart_simulator()
+                self.logg.info(
+                    "Restarting BeamNG to speed up the simulations. Iterations: {}".format(
+                        iteration
+                    )
+                )
+                self.restart_simulator(env_name=self.env_name)
 
             iteration += 1
 
-        self.logg.info("Runtime expired: {} iterations > {} iterations".format(iteration, self.iteration_runtime))
+        self.logg.info(
+            "Runtime expired: {} iterations > {} iterations".format(
+                iteration, self.iteration_runtime
+            )
+        )
         self.extract_results(iteration_count=iteration)
-        self.evaluator.close()
+        if self.env_name == BEAMNG_SIM_NAME:
+            self.evaluator.close()
+        elif last and (
+            self.env_name == UDACITY_SIM_NAME or self.env_name == DONKEY_SIM_NAME
+        ):
+            self.evaluator.close()
 
-    def restart_simulator(self, kill_simulator_process: bool = False) -> None:
+    def restart_simulator(
+        self, env_name: str, kill_simulator_process: bool = False
+    ) -> None:
         if kill_simulator_process:
-            kill_beamng_simulator()
+            if env_name == BEAMNG_SIM_NAME:
+                kill_beamng_simulator()
+            elif env_name == UDACITY_SIM_NAME:
+                kill_udacity_simulator()
+            elif env_name == DONKEY_SIM_NAME:
+                kill_donkey_simulator()
+            else:
+                raise NotImplementedError(f"Unknown simulator: {env_name}")
         else:
             self.evaluator.close()
         time.sleep(5)
@@ -250,6 +353,10 @@ class MapElites:
             beamng_user=self.beamng_user_path,
             headless=self.headless,
             beamng_autopilot=self.beamng_autopilot,
+            cyclegan_experiment_name=self.cyclegan_experiment_name,
+            gpu_ids=self.gpu_ids,
+            cyclegan_checkpoints_dir=self.cyclegan_checkpoints_dir,
+            cyclegan_epoch=self.cyclegan_epoch,
         )
         self.initialize_evaluator()
 
@@ -259,37 +366,76 @@ class MapElites:
         while exception_thrown:
             start_time_execution = time.perf_counter()
             try:
+
                 self.evaluator.run_sim(individual=individual)
                 exception_thrown = False
-            except RuntimeError:
-                self.logg.warn("RuntimeError: closing and restarting the simulator")
+
+            except RuntimeError as e:
+                self.logg.warn(
+                    f"RuntimeError {e}: closing and restarting the simulator"
+                )
                 time_elapsed_exception += time.perf_counter() - start_time_execution
-                exception_thrown = True
-                self.restart_simulator()
-                self.logg.warn("Time elapsed during exception: {:.2f}".format(time_elapsed_exception))
+                if self.env_name != UDACITY_SIM_NAME:
+                    exception_thrown = True
+                    self.restart_simulator(env_name=self.env_name)
+                self.logg.warn(
+                    "Time elapsed during exception: {:.2f}".format(
+                        time_elapsed_exception
+                    )
+                )
 
             except socket.timeout:
                 self.logg.warn("socket error: killing and restarting the simulator")
                 time_elapsed_exception += time.perf_counter() - start_time_execution
                 exception_thrown = True
-                assert self.env_name == BEAMNG_SIM_NAME, "Sim name {} not supported during socket timeout".format(
+                assert (
+                    self.env_name == BEAMNG_SIM_NAME
+                ), "Sim name {} not supported during socket timeout".format(
                     self.env_name
                 )
-                self.restart_simulator(kill_simulator_process=True)
-                self.logg.warn("Time elapsed during exception: {:.2f}".format(time_elapsed_exception))
+                self.restart_simulator(
+                    env_name=self.env_name, kill_simulator_process=True
+                )
+                self.logg.warn(
+                    "Time elapsed during exception: {:.2f}".format(
+                        time_elapsed_exception
+                    )
+                )
 
             except TypeError:
                 # TypeError: cannot unpack non-iterable NoneType object
                 self.logg.warn("type error: killing and restarting the simulator")
                 time_elapsed_exception += time.perf_counter() - start_time_execution
                 exception_thrown = True
-                assert self.env_name == BEAMNG_SIM_NAME, "Sim name {} not supported during socket timeout".format(
+                assert (
+                    self.env_name == BEAMNG_SIM_NAME
+                ), "Sim name {} not supported during socket timeout".format(
                     self.env_name
                 )
-                self.restart_simulator(kill_simulator_process=True)
-                self.logg.warn("Time elapsed during exception: {:.2f}".format(time_elapsed_exception))
+                self.restart_simulator(
+                    env_name=self.env_name, kill_simulator_process=True
+                )
+                self.logg.warn(
+                    "Time elapsed during exception: {:.2f}".format(
+                        time_elapsed_exception
+                    )
+                )
 
-    def execute_individuals_and_place_in_map(self, individuals: List[Individual], occupation_map: bool = True) -> None:
+            except Exception as ex:
+                self.logg.warn(f"Generic exception: {ex}")
+                time_elapsed_exception += time.perf_counter() - start_time_execution
+                if self.env_name != UDACITY_SIM_NAME:
+                    exception_thrown = True
+                    self.restart_simulator(env_name=self.env_name)
+                self.logg.warn(
+                    "Time elapsed during exception: {:.2f}".format(
+                        time_elapsed_exception
+                    )
+                )
+
+    def execute_individuals_and_place_in_map(
+        self, individuals: List[Individual], occupation_map: bool = True
+    ) -> None:
 
         max_id = max([individual.id for individual in individuals])
 
@@ -306,29 +452,46 @@ class MapElites:
             new_individual = Individual(road=road, start_id=max_id)
             new_individual.id = individual.id
 
-            if len(individual.get_representation().road_points) != len(new_individual.get_representation().road_points):
+            if len(individual.get_representation().road_points) != len(
+                new_individual.get_representation().road_points
+            ):
                 road_test_visualizer = RoadTestVisualizer(map_size=MAP_SIZE)
                 road_test_visualizer.visualize_road_test(
-                    road=individual.get_representation(), folder_path="logs", filename="road_old"
+                    road=individual.get_representation(),
+                    folder_path="logs",
+                    filename="road_old",
                 )
                 road_test_visualizer.visualize_road_test(
-                    road=new_individual.get_representation(), folder_path="logs", filename="road_new"
+                    road=new_individual.get_representation(),
+                    folder_path="logs",
+                    filename="road_new",
                 )
 
             assert len(individual.get_representation().road_points) == len(
                 new_individual.get_representation().road_points
             ), "Road point of old individual {} must be equal to road points of new individual {}".format(
-                len(individual.get_representation().road_points), len(new_individual.get_representation().road_points)
+                len(individual.get_representation().road_points),
+                len(new_individual.get_representation().road_points),
             )
 
             self.all_individuals.append(new_individual)
             self.execute_individual(individual=new_individual)
-            self.place_in_mapelites(individual=new_individual, iteration=0, occupation_map=occupation_map)
+            self.place_in_mapelites(
+                individual=new_individual, iteration=0, occupation_map=occupation_map
+            )
 
-            if i != 0 and i % self.restart_beamng_every == 0 and self.env_name == BEAMNG_SIM_NAME:
+            if (
+                i != 0
+                and i % self.restart_beamng_every == 0
+                and self.env_name == BEAMNG_SIM_NAME
+            ):
                 # Indeed the reset runtime slows down with the number of resets
-                self.logg.info("Restarting BeamNG to speed up the simulations. Iterations: {}".format(i))
-                self.restart_simulator()
+                self.logg.info(
+                    "Restarting BeamNG to speed up the simulations. Iterations: {}".format(
+                        i
+                    )
+                )
+                self.restart_simulator(env_name=self.env_name)
 
         self.extract_results(iteration_count=0, occupation_map=occupation_map)
 
@@ -348,7 +511,9 @@ class MapElites:
         softmax_values = probs / np.sum(probs)
 
         for i in range(self.population_size):
-            self.logg.info("Time elapsed: {:.2f}s".format(time.perf_counter() - start_time))
+            self.logg.info(
+                "Time elapsed: {:.2f}s".format(time.perf_counter() - start_time)
+            )
             random_angle = np.random.choice(a=angles, size=1, p=softmax_values)[0]
             idx = np.where(angles == random_angle)[0]
             # making angle with index idx less probable at the next iteration
@@ -403,7 +568,6 @@ class MapElites:
                 self.feature_map[i].bins = feature_bin[i] + 1
 
         if occupation_map:
-            status = None
             # compares value of x with value of the individual already in the bin
             if feature_bin in self.fitness_values:
                 if fitness_value < self.fitness_values[feature_bin]:
@@ -417,19 +581,16 @@ class MapElites:
 
                     self.fitness_values[feature_bin] = fitness_value
                     self.population[feature_bin] = individual
-                    status = "Replace"
                 else:
                     self.logg.info(
                         f"Iteration {iteration}: Rejecting individual {individual.id} at {feature_bin} with fitness "
                         f"{fitness_value} in favor of {self.fitness_values[feature_bin]}"
                     )
-                    status = "Reject"
             else:
                 self.logg.info(
                     f"Iteration {iteration}: Placing individual {individual.id} at {feature_bin} "
                     f"with fitness {fitness_value}"
                 )
-                status = "Place"
                 if parent_feature_bin is not None:
                     self.population[parent_feature_bin].placed_mutant += 1
                 self.fitness_values[feature_bin] = fitness_value
@@ -443,12 +604,16 @@ class MapElites:
                 self.population_with_all_individuals[feature_bin] = []
             self.population_with_all_individuals[feature_bin].append(individual)
 
-    def extract_results(self, iteration_count: int, occupation_map: bool = True) -> None:
+    def extract_results(
+        self, iteration_count: int, occupation_map: bool = True
+    ) -> None:
 
         feature_axes_names = [feature_axis.name for feature_axis in self.feature_map]
 
         # TODO: maybe the following is done to support more than features in the future
-        for feature_axis_1, feature_axis_2 in itertools.combinations(self.feature_map, 2):
+        for feature_axis_1, feature_axis_2 in itertools.combinations(
+            self.feature_map, 2
+        ):
 
             x = feature_axes_names.index(feature_axis_1.name)
             y = feature_axes_names.index(feature_axis_2.name)
@@ -471,6 +636,8 @@ class MapElites:
                         fitness_values[feature_bin_2d] = fitness_value
                         population[feature_bin_2d] = self.population[feature_bin]
 
+                self.logg.info("Plot map of elites end iterations")
+
                 write_mapelites_report(
                     filepath=self.filepath,
                     iterations=iteration_count,
@@ -485,8 +652,12 @@ class MapElites:
                     iterations=iteration_count,
                     x_axis_label=feature_axis_1.name,
                     y_axis_label=feature_axis_2.name,
-                    min_value_cbar=self.all_individuals[0].get_fitness().get_min_value(),
-                    max_value_cbar=self.all_individuals[0].get_fitness().get_max_value(),
+                    min_value_cbar=self.all_individuals[0]
+                    .get_fitness()
+                    .get_min_value(),
+                    max_value_cbar=self.all_individuals[0]
+                    .get_fitness()
+                    .get_max_value(),
                 )
 
                 plot_raw_map_of_elites(
@@ -498,28 +669,45 @@ class MapElites:
                 )
 
                 if self.collect_images:
-                    save_images_of_individuals(filepath=self.filepath, population=self.population)
+                    save_images_of_individuals(
+                        filepath=self.filepath, population=self.population
+                    )
 
             else:
 
-                for feature_bin, individuals in self.population_with_all_individuals.items():
+                for (
+                    feature_bin,
+                    individuals,
+                ) in self.population_with_all_individuals.items():
                     feature_bin_2d = (feature_bin[x], feature_bin[y])
                     fitness_values_individuals = [
                         individual.get_fitness().get_value()
-                        for individual in self.population_with_all_individuals[feature_bin]
+                        for individual in self.population_with_all_individuals[
+                            feature_bin
+                        ]
                     ]
-                    is_success_flags = [fitness_value > 0.0 for fitness_value in fitness_values_individuals]
+                    is_success_flags = [
+                        fitness_value > 0.0
+                        for fitness_value in fitness_values_individuals
+                    ]
                     population[feature_bin_2d] = np.mean(is_success_flags)
                     self.logg.info(
                         "Feature bin: {}, Fitness values: {}, Mean probability: {}".format(
-                            feature_bin, fitness_values_individuals, np.mean(is_success_flags)
+                            feature_bin,
+                            fitness_values_individuals,
+                            np.mean(is_success_flags),
                         )
                     )
 
                 all_individuals = [
-                    individual for individuals in self.population_with_all_individuals.values() for individual in individuals
+                    individual
+                    for individuals in self.population_with_all_individuals.values()
+                    for individual in individuals
                 ]
-                fitness_values = [individual.get_fitness().get_value() for individual in all_individuals]
+                fitness_values = [
+                    individual.get_fitness().get_value()
+                    for individual in all_individuals
+                ]
 
                 write_mapelites_report(
                     filepath=self.filepath,
@@ -538,7 +726,10 @@ class MapElites:
                     occupation_map=False,
                 )
 
-                write_individual_report(filepath=self.filepath, population=self.population_with_all_individuals)
+                write_individual_report(
+                    filepath=self.filepath,
+                    population=self.population_with_all_individuals,
+                )
 
                 plot_map_of_elites(
                     data=population,
@@ -552,7 +743,10 @@ class MapElites:
                 )
 
                 if self.collect_images:
-                    save_images_of_individuals(filepath=self.filepath, population=self.population_with_all_individuals)
+                    save_images_of_individuals(
+                        filepath=self.filepath,
+                        population=self.population_with_all_individuals,
+                    )
 
 
 if __name__ == "__main__":
@@ -576,16 +770,28 @@ if __name__ == "__main__":
     set_random_seed(seed=seed)
 
     assert platform_.lower() == "darwin", "Only on MacOS for now"
-    assert os.path.exists(donkey_exe_path), "Donkey executor file not found: {}".format(donkey_exe_path)
-    assert os.path.exists(udacity_exe_path), "Udacity executor file not found: {}".format(udacity_exe_path)
+    assert os.path.exists(donkey_exe_path), "Donkey executor file not found: {}".format(
+        donkey_exe_path
+    )
+    assert os.path.exists(
+        udacity_exe_path
+    ), "Udacity executor file not found: {}".format(udacity_exe_path)
 
-    env = make_env(simulator_name=env_name, seed=seed, donkey_exe_path=donkey_exe_path, port=-1)
+    env = make_env(
+        simulator_name=env_name, seed=seed, donkey_exe_path=donkey_exe_path, port=-1
+    )
 
     model_path = "../../logs/models/mixed-dave2-2022_06_04_14_03_27.h5"  # robust model
     # model_path = '../../logs/models/mixed-dave2-2022_06_07_15_51_20.h5'  # weak model
     assert os.path.exists(model_path), "Model path not found: {}".format(model_path)
 
-    agent = make_agent(env_name=env_name, env=env, model_path=model_path, agent_type=agent_type, predict_throttle=False)
+    agent = make_agent(
+        env_name=env_name,
+        env=env,
+        model_path=model_path,
+        agent_type=agent_type,
+        predict_throttle=False,
+    )
 
     test_generator = make_test_generator(
         generator_name=generator_name,
