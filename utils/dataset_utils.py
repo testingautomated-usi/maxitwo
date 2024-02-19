@@ -1,14 +1,24 @@
 import os
-from typing import Dict, List, Tuple
+from typing import Tuple, List, Dict
 
 import cv2
 import numpy as np
-from sklearn.model_selection import train_test_split
 from tensorflow import keras
 
-from config import BEAMNG_SIM_NAME, DONKEY_SIM_NAME, IMAGE_HEIGHT, IMAGE_WIDTH, SIMULATOR_NAMES, UDACITY_SIM_NAME
+from config import (
+    SIMULATOR_NAMES,
+    BEAMNG_SIM_NAME,
+    UDACITY_SIM_NAME,
+    DONKEY_SIM_NAME,
+    IMAGE_WIDTH,
+    IMAGE_HEIGHT,
+    TEST_SPLIT_BEAMNG,
+    TEST_SPLIT_DONKEY,
+    TEST_SPLIT_UDACITY,
+)
 from global_log import GlobalLog
 from self_driving.road import Road
+from sklearn.model_selection import train_test_split
 
 
 def save_archive(
@@ -34,7 +44,9 @@ def save_archive(
     tracks_control_points = []
     for track in tracks:
         tracks_concrete.append(track.get_concrete_representation(to_plot=True))
-        tracks_control_points.append([(cp.x, cp.y, cp.z) for cp in track.control_points])
+        tracks_control_points.append(
+            [(cp.x, cp.y, cp.z) for cp in track.control_points]
+        )
 
     if "supervised" not in archive_name:
         assert len(observations_array) == len(
@@ -58,18 +70,28 @@ def save_archive(
     logg.info("Observations: {}".format(numpy_dict["observations"].shape))
     logg.info("Is success flags: {}".format(numpy_dict["is_success_flags"].shape))
     logg.info("Tracks concrete: {}".format(numpy_dict["tracks_concrete"].shape))
-    logg.info("Tracks control points: {}".format(numpy_dict["tracks_control_points"].shape))
-    logg.info("Car positions x for each episode: {}".format(numpy_dict["car_positions_x_episodes"].shape))
-    logg.info("Car positions y for each episode: {}".format(numpy_dict["car_positions_y_episodes"].shape))
+    logg.info(
+        "Tracks control points: {}".format(numpy_dict["tracks_control_points"].shape)
+    )
+    logg.info(
+        "Car positions x for each episode: {}".format(
+            numpy_dict["car_positions_x_episodes"].shape
+        )
+    )
+    logg.info(
+        "Car positions y for each episode: {}".format(
+            numpy_dict["car_positions_y_episodes"].shape
+        )
+    )
     logg.info("Episode lengths: {}".format(numpy_dict["episode_lengths"].shape))
 
     np.savez(os.path.join(archive_path, "{}.npz".format(archive_name)), **numpy_dict)
 
 
 def _load_numpy_archive(archive_path: str, archive_name: str) -> Dict:
-    assert os.path.exists(os.path.join(archive_path, archive_name)), "Archive file {} does not exist".format(
+    assert os.path.exists(
         os.path.join(archive_path, archive_name)
-    )
+    ), "Archive file {} does not exist".format(os.path.join(archive_path, archive_name))
 
     # https://stackoverflow.com/questions/55890813/how-to-fix-object-arrays-cannot-be-loaded-when-allow-pickle-false-for-imdb-loa
 
@@ -92,8 +114,10 @@ def load_archive_into_dataset(
     archive_names: List[str],
     seed: int,
     test_split: float = 0.2,
+    custom_test_split: bool = False,
     predict_throttle: bool = False,
     env_name: str = None,
+    percentage_data: float = 1.0,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
     logg = GlobalLog("load_archive_into_dataset")
@@ -101,15 +125,21 @@ def load_archive_into_dataset(
     if env_name == "mixed":
         X_train, X_test, y_train, y_test = [], [], [], []
         for sim_name in SIMULATOR_NAMES:
-            filtered_archive_names = list(filter(lambda an: sim_name in an, archive_names))
+            filtered_archive_names = list(
+                filter(lambda an: sim_name in an, archive_names)
+            )
             assert (
                 len(filtered_archive_names) <= 1
-            ), "There must be at most one archive name that contains {}. Found: {}".format(sim_name, filtered_archive_names)
+            ), "There must be at most one archive name that contains {}. Found: {}".format(
+                sim_name, filtered_archive_names
+            )
 
             if len(filtered_archive_names) == 1:
 
                 filtered_archive_name = filtered_archive_names[0]
-                numpy_dict = load_archive(archive_path=archive_path, archive_name=filtered_archive_name)
+                numpy_dict = load_archive(
+                    archive_path=archive_path, archive_name=filtered_archive_name
+                )
                 obs = numpy_dict["observations"]
                 actions = numpy_dict["actions"]
 
@@ -119,14 +149,49 @@ def load_archive_into_dataset(
                 if not predict_throttle:
                     actions = actions[:, 0]
 
+                if custom_test_split:
+
+                    if sim_name == BEAMNG_SIM_NAME:
+                        _test_split = TEST_SPLIT_BEAMNG
+
+                    elif sim_name == UDACITY_SIM_NAME:
+                        _test_split = TEST_SPLIT_UDACITY
+
+                    elif sim_name == DONKEY_SIM_NAME:
+                        _test_split = TEST_SPLIT_DONKEY
+
+                    else:
+                        raise NotImplementedError(f"Unknown env name: {sim_name}")
+
+                    logg.info(f"Using custom test split for {sim_name}: {_test_split}")
+                else:
+                    _test_split = test_split
+
                 X_train_i, X_test_i, y_train_i, y_test_i = train_test_split(
-                    obs, actions, test_size=test_split, random_state=seed
+                    obs, actions, test_size=_test_split, random_state=seed
                 )
                 logg.info(
                     "Training set size for {}: {}. Validation set size for {}: {}".format(
                         sim_name, X_train_i.shape, sim_name, X_test_i.shape
                     )
                 )
+
+                if percentage_data < 1.0:
+                    length_dataset = len(X_train_i)
+                    length_dataset_to_consider = int(percentage_data * length_dataset)
+                    items_to_remove = length_dataset - length_dataset_to_consider
+                    indices_to_remove = np.random.choice(
+                        a=np.arange(start=0, stop=items_to_remove),
+                        size=items_to_remove,
+                        replace=False,
+                    )
+                    X_train_i = np.delete(X_train_i, indices_to_remove, axis=0)
+                    y_train_i = np.delete(y_train_i, indices_to_remove, axis=0)
+
+                    logg.info(
+                        f"Training set size for {sim_name} after filtering: {X_train_i.shape}."
+                    )
+
                 logg.info("Adding sim name dimension")
                 X_train.append([X_train_i, sim_name])
                 X_test.append([X_test_i, sim_name])
@@ -140,14 +205,20 @@ def load_archive_into_dataset(
         y_train = np.concatenate(y_train)
         y_test = np.concatenate(y_test)
 
-        logg.info("Mixed training set size: {}. Mixed validation set size: {}".format(X_train.shape, X_test.shape))
+        logg.info(
+            "Mixed training set size: {}. Mixed validation set size: {}".format(
+                X_train.shape, X_test.shape
+            )
+        )
 
         return X_train, X_test, y_train, y_test
 
     obs = []
     actions = []
     for i in range(len(archive_names)):
-        numpy_dict = load_archive(archive_path=archive_path, archive_name=archive_names[i])
+        numpy_dict = load_archive(
+            archive_path=archive_path, archive_name=archive_names[i]
+        )
         obs_i = numpy_dict["observations"]
         actions_i = numpy_dict["actions"]
         obs.append(obs_i)
@@ -166,8 +237,14 @@ def load_archive_into_dataset(
     else:
         y = actions
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_split, random_state=seed)
-    logg.info("Training set size: {}. Validation set size: {}".format(X_train.shape, X_test.shape))
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_split, random_state=seed
+    )
+    logg.info(
+        "Training set size: {}. Validation set size: {}".format(
+            X_train.shape, X_test.shape
+        )
+    )
 
     return X_train, X_test, y_train, y_test
 
@@ -175,7 +252,11 @@ def load_archive_into_dataset(
 # FIXME: this method used to modify an image taken randomly from the dataset; to me it makes sense to augment
 #  the current image
 def augment(
-    image: np.ndarray, y: np.ndarray, range_x: int = 100, range_y: int = 10, fake_images: bool = False
+    image: np.ndarray,
+    y: np.ndarray,
+    range_x: int = 100,
+    range_y: int = 10,
+    fake_images: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generate an augmented image and adjust steering angle.
@@ -254,7 +335,9 @@ def random_flip(image: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarra
     return image, y
 
 
-def random_translate(image: np.ndarray, y: np.ndarray, range_x: int, range_y: int) -> Tuple[np.ndarray, np.ndarray]:
+def random_translate(
+    image: np.ndarray, y: np.ndarray, range_x: int, range_y: int
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Randomly shift the image vertically and horizontally (translation).
     """
@@ -313,6 +396,7 @@ def random_brightness(image: np.ndarray) -> np.ndarray:
 
 
 class DataGenerator(keras.utils.Sequence):
+
     def __init__(
         self,
         X: np.ndarray,
@@ -324,6 +408,7 @@ class DataGenerator(keras.utils.Sequence):
         predict_throttle: bool = False,
         preprocess: bool = True,
         fake_images: bool = False,
+        no_augment: bool = False,
     ):
         self.X = X
         self.y = y
@@ -340,10 +425,13 @@ class DataGenerator(keras.utils.Sequence):
         self.predict_throttle = predict_throttle
         self.preprocess = preprocess
         self.fake_images = fake_images
+        self.no_augment = no_augment
         self.on_epoch_end()
 
         # allow for mixed datasets
-        assert env_name in SIMULATOR_NAMES or env_name == "mixed", "Unknown simulator name {}. Choose among {}".format(
+        assert (
+            env_name in SIMULATOR_NAMES or env_name == "mixed"
+        ), "Unknown simulator name {}. Choose among {}".format(
             env_name, SIMULATOR_NAMES
         )
 
@@ -386,16 +474,29 @@ class DataGenerator(keras.utils.Sequence):
             if type(y_item) == np.float64 or type(y_item) == np.float32:
                 y_item = np.asarray([y_item])
 
-            if self.is_training and np.random.rand() < 0.5:
-                X_item, y_item = augment(image=X_item, y=y_item, fake_images=self.fake_images)
+            if self.is_training and np.random.rand() < 0.5 and not self.no_augment:
+                X_item, y_item = augment(
+                    image=X_item, y=y_item, fake_images=self.fake_images
+                )
 
             if self.preprocess:
                 if self.env_name == "mixed":
-                    assert env_name is not None, "Env name for mixed dataset preprocessing not assigned"
-                    X_batch[i] = preprocess(image=X_item, env_name=env_name, fake_images=self.fake_images)
+                    assert (
+                        env_name is not None
+                    ), "Env name for mixed dataset preprocessing not assigned"
+                    X_batch[i] = preprocess(
+                        image=X_item, env_name=env_name, fake_images=self.fake_images
+                    )
                 else:
-                    assert self.env_name in SIMULATOR_NAMES, "Unknown simulator name: {}".format(self.env_name)
-                    X_batch[i] = preprocess(image=X_item, env_name=self.env_name, fake_images=self.fake_images)
+                    assert (
+                        self.env_name in SIMULATOR_NAMES
+                    ), "Unknown simulator name: {}".format(self.env_name)
+                    X_batch[i] = preprocess(
+                        image=X_item,
+                        env_name=self.env_name,
+                        fake_images=self.fake_images,
+                    )
+
             y_batch[i] = y_item
 
         return X_batch, y_batch
@@ -408,7 +509,9 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         """Generates one batch of data"""
 
-        batch_indexes = self.indexes[index * self.batch_size : (index + 1) * self.batch_size]
+        batch_indexes = self.indexes[
+            index * self.batch_size : (index + 1) * self.batch_size
+        ]
         batch_indexes = [self.indexes[batch_idx] for batch_idx in batch_indexes]
         X_batch, y_batch = self.get_data_batch(batch_indexes=batch_indexes)
 
