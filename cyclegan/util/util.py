@@ -1,13 +1,14 @@
 """This module contains simple helper functions """
+
 from __future__ import print_function
 
-import os
 from collections import namedtuple
-from typing import Dict, NamedTuple, Union
+from typing import NamedTuple, Union
 
-import numpy as np
 import torch
+import numpy as np
 from PIL import Image
+import os
 
 Opt = namedtuple(
     "Opt",
@@ -42,11 +43,24 @@ Opt = namedtuple(
         "original_image_size",
         "load_size",
         "crop_size",
+        "dataroot",
+        "dataset_mode",
+        "archive_filepath",
+        "max_dataset_size",
     ],
 )
 
 
-def get_base_and_test_default_options(name: str, gpu_ids: str, checkpoints_dir: str, epoch: Union[int, str]) -> NamedTuple:
+def get_base_and_test_default_options(
+    name: str,
+    gpu_ids: str,
+    checkpoints_dir: str,
+    epoch: Union[int, str],
+    dataroot: str = "cyclegan",
+    dataset_mode: str = "archive",
+    archive_filepath: str = None,
+    max_dataset_size: float = float("inf"),
+) -> NamedTuple:
     # set gpu ids
     str_ids = gpu_ids.split(",")
     gpu_ids = []
@@ -88,6 +102,10 @@ def get_base_and_test_default_options(name: str, gpu_ids: str, checkpoints_dir: 
         original_image_size=(140, 320),
         load_size=286,
         crop_size=256,
+        dataroot=dataroot,
+        dataset_mode=dataset_mode,
+        archive_filepath=archive_filepath,
+        max_dataset_size=max_dataset_size,
     )
 
     return opt
@@ -105,10 +123,22 @@ def tensor2im(input_image, imtype=np.uint8):
             image_tensor = input_image.data
         else:
             return input_image
-        image_numpy = image_tensor[0].cpu().float().numpy()  # convert it into a numpy array
+
+        # torch.cuda.synchronize()
+        # start_time = time.perf_counter()
+        image_numpy = (
+            image_tensor[0].cpu().float().numpy()
+        )  # convert it into a numpy array
+        # torch.cuda.synchronize()
+        # print(f"Tensor to numpy: {time.perf_counter() - start_time}")
+
+        # start_time = time.perf_counter()
         if image_numpy.shape[0] == 1:  # grayscale to RGB
             image_numpy = np.tile(image_numpy, (3, 1, 1))
-        image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0  # post-processing: transpose and scaling
+        image_numpy = (
+            (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
+        )  # post-processing: transpose and scaling
+        # print(f"Postprocessing: {time.perf_counter() - start_time}")
     else:  # if it is a numpy array, do nothing
         image_numpy = input_image
     return image_numpy.astype(imtype)
