@@ -10,7 +10,6 @@ scipy==1.4.1
 beamngpy==1.22
 eventlet==0.33.1
 greenlet==1.1.2
-dnspython==2.2.1
 flask==2.0.0
 python-socketio==4.5.1
 python-engineio==3.11.2
@@ -20,8 +19,9 @@ h5py==2.10.0
 sklearn==0.0
 pandas==1.3.5
 seaborn==0.11.1
-torch==1.7.1
-torchvision==0.8.2
-torchaudio==0.7.2
+torch==1.8.1
+torchvision==0.9.1
+torchaudio==0.8.1
 moviepy==1.0.3
 statsmodels==0.13.2
+tqdm==4.64.0
