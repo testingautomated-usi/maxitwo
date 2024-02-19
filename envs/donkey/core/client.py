@@ -30,6 +30,7 @@ The server will reply with telemetry and other status messages in an
 asynchronous manner.
 Author: Tawn Kramer
 """
+
 import socket
 import re
 import select
@@ -54,8 +55,8 @@ def replace_float_notation(string):
         matches = re.finditer(regex, string, re.MULTILINE)
 
         for match in matches:
-            num = match.group('num').replace(',', '.')
-            string = string.replace(match.group('num'), num)
+            num = match.group("num").replace(",", ".")
+            string = string.replace(match.group("num"), num)
     return string
 
 
@@ -68,7 +69,7 @@ class SDClient:
         self.poll_socket_sleep_sec = poll_socket_sleep_time
         self.th = None
 
-        self.logger = GlobalLog('SDClient')
+        self.logger = GlobalLog("SDClient")
 
         # the aborted flag will be set when we have detected a problem with the socket
         # that we can't recover from.
@@ -82,8 +83,10 @@ class SDClient:
         try:
             self.s.connect((self.host, self.port))
         except ConnectionRefusedError as e:
-            raise Exception("Could not connect to server. Is it running? "
-                            "If you specified 'remote', then you must start it manually.")
+            raise Exception(
+                "Could not connect to server. Is it running? "
+                "If you specified 'remote', then you must start it manually."
+            )
 
         # time.sleep(pause_on_create)
         self.do_process_msgs = True
@@ -98,7 +101,7 @@ class SDClient:
         self.s.sendall(msg.encode("utf-8"))
 
     def on_msg_recv(self, j):
-        print("got:" + j['msg_type'])
+        print("got:" + j["msg_type"])
 
     def stop(self):
         # signal proc_msg loop to stop, then wait for thread to finish
@@ -110,16 +113,16 @@ class SDClient:
             self.s.close()
 
     def proc_msg(self, sock):
-        '''
+        """
         This is the thread message loop to process messages.
         We will send any message that is queued via the self.msg variable
         when our socket is in a writable state.
         And we will read any messages when it's in a readable state and then
         call self.on_msg_recv with the json object message.
-        '''
+        """
         sock.setblocking(False)
-        inputs = [ sock ]
-        outputs = [ sock ]
+        inputs = [sock]
+        outputs = [sock]
         partial = []
 
         while self.do_process_msgs:
@@ -153,7 +156,7 @@ class SDClient:
                         # check first and last char for a valid json terminator
                         # if not, then add to our partial packets list and see
                         # if we get the rest of the packet on our next go around.
-                        if first_char == "{" and last_char == '}':
+                        if first_char == "{" and last_char == "}":
                             # Replace comma with dots for floats
                             # useful when using unity in a language different from English
                             m = replace_float_notation(m)
@@ -166,16 +169,23 @@ class SDClient:
                         else:
                             partial.append(m)
                             # logger.info("partial packet:" + m)
-                            if last_char == '}':
+                            if last_char == "}":
                                 if partial[0][0] == "{":
                                     assembled_packet = "".join(partial)
-                                    assembled_packet = replace_float_notation(assembled_packet)
+                                    assembled_packet = replace_float_notation(
+                                        assembled_packet
+                                    )
                                     second_open = assembled_packet.find('{"msg', 1)
                                     if second_open != -1:
                                         # hmm what to do? We have a partial packet. Trimming just
                                         # the good part and discarding the rest.
-                                        print("got partial packet:" + assembled_packet[:20])
-                                        assembled_packet = assembled_packet[second_open:]
+                                        print(
+                                            "got partial packet:"
+                                            + assembled_packet[:20]
+                                        )
+                                        assembled_packet = assembled_packet[
+                                            second_open:
+                                        ]
 
                                     try:
                                         j = json.loads(assembled_packet)

@@ -1,8 +1,7 @@
-
-BEAMNG_SIM_NAME = 'beamng'
-DONKEY_SIM_NAME = 'donkey'
-UDACITY_SIM_NAME = 'udacity'
-MOCK_SIM_NAME = 'mock'
+BEAMNG_SIM_NAME = "beamng"
+DONKEY_SIM_NAME = "donkey"
+UDACITY_SIM_NAME = "udacity"
+MOCK_SIM_NAME = "mock"
 DAVE2_NAME = "dave2"
 CHAUFFEUR_NAME = "chauffeur"
 EPOCH_NAME = "epoch"

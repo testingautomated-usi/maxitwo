@@ -18,10 +18,16 @@ class SingleDataset(BaseDataset):
         BaseDataset.__init__(self, opt)
 
         def natural_sorting_fn(image_path: str) -> int:
-            return int(image_path[image_path.rindex('img') + 3:image_path.rindex('.')])
+            return int(
+                image_path[image_path.rindex("img") + 3 : image_path.rindex(".")]
+            )
 
-        self.A_paths = sorted(make_dataset(opt.dataroot, opt.max_dataset_size), key=natural_sorting_fn)
-        input_nc = self.opt.output_nc if self.opt.direction == 'BtoA' else self.opt.input_nc
+        self.A_paths = sorted(
+            make_dataset(opt.dataroot, opt.max_dataset_size), key=natural_sorting_fn
+        )
+        input_nc = (
+            self.opt.output_nc if self.opt.direction == "BtoA" else self.opt.input_nc
+        )
         self.transform = get_transform(opt, grayscale=(input_nc == 1))
 
     def __getitem__(self, index):
@@ -35,9 +41,9 @@ class SingleDataset(BaseDataset):
             A_paths(str) - - the path of the image
         """
         A_path = self.A_paths[index]
-        A_img = Image.open(A_path).convert('RGB')
+        A_img = Image.open(A_path).convert("RGB")
         A = self.transform(A_img)
-        return {'A': A, 'A_paths': A_path}
+        return {"A": A, "A_paths": A_path}
 
     def __len__(self):
         """Return the total number of images in the dataset."""

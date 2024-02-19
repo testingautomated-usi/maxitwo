@@ -17,4 +17,3 @@ class GeneratedTrack(SimulatorScene):
 
 
 SIMULATOR_SCENES_DICT = {"generated_track": GeneratedTrack()}
-

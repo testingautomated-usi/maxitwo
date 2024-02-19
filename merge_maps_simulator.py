@@ -6,18 +6,64 @@ import numpy as np
 from config import SIMULATOR_NAMES
 from global_log import GlobalLog
 from test_generators.mapelites.config import QUALITY_METRICS_NAMES
-from utils.report_utils import load_raw_map, resize_map, plot_map_of_elites, plot_raw_map_of_elites, \
-    load_individual_report, write_individual_report, get_values_from_individuals
+from utils.report_utils import (
+    load_raw_map,
+    resize_map,
+    plot_map_of_elites,
+    plot_raw_map_of_elites,
+    load_individual_report,
+    write_individual_report,
+    get_values_from_individuals,
+)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--folder', help='Path of the folder where the logs are', type=str, default='logs')
-parser.add_argument('--env-name', help='Should be equal to the one of which we are merging the maps of', type=str, choices=SIMULATOR_NAMES)
-parser.add_argument('--filepaths', nargs="+", help='Paths of the folders where the reports are', type=str, required=True)
-parser.add_argument('--output-dir', help='Output folder where the merged heatmap will be saved', type=str, default=None)
-parser.add_argument('--failure-probability', help='Whether to consider failure probability when building the map (default success_probability)', action="store_true", default=False)
-parser.add_argument('--quality-metric', help='Name of the quality metric', type=str, choices=QUALITY_METRICS_NAMES, default=None)
-parser.add_argument('--min-quality-metric', help='Min value of the quality metric specified above (for normalization purposes)', type=float, default=None)
-parser.add_argument('--max-quality-metric', help='Max value of the quality metric specified above (for normalization purposes)', type=float, default=None)
+parser.add_argument(
+    "--folder", help="Path of the folder where the logs are", type=str, default="logs"
+)
+parser.add_argument(
+    "--env-name",
+    help="Should be equal to the one of which we are merging the maps of",
+    type=str,
+    choices=SIMULATOR_NAMES,
+)
+parser.add_argument(
+    "--filepaths",
+    nargs="+",
+    help="Paths of the folders where the reports are",
+    type=str,
+    required=True,
+)
+parser.add_argument(
+    "--output-dir",
+    help="Output folder where the merged heatmap will be saved",
+    type=str,
+    default=None,
+)
+parser.add_argument(
+    "--failure-probability",
+    help="Whether to consider failure probability when building the map (default success_probability)",
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
+    "--quality-metric",
+    help="Name of the quality metric",
+    type=str,
+    choices=QUALITY_METRICS_NAMES,
+    default=None,
+)
+parser.add_argument(
+    "--min-quality-metric",
+    help="Min value of the quality metric specified above (for normalization purposes)",
+    type=float,
+    default=None,
+)
+parser.add_argument(
+    "--max-quality-metric",
+    help="Max value of the quality metric specified above (for normalization purposes)",
+    type=float,
+    default=None,
+)
 
 args = parser.parse_args()
 
@@ -28,7 +74,11 @@ if __name__ == "__main__":
 
     logg = GlobalLog("merge_probability_maps")
 
-    assert len(args.filepaths) == 2, "Number of probability maps to merge needs to be 2. Found: {}".format(len(args.filepaths))
+    assert (
+        len(args.filepaths) == 2
+    ), "Number of probability maps to merge needs to be 2. Found: {}".format(
+        len(args.filepaths)
+    )
 
     maps = []
     reports = []
@@ -53,7 +103,7 @@ if __name__ == "__main__":
                 filepath=complete_filepath,
                 failure_probability=args.failure_probability,
                 multiply_probabilities=False,
-                quality_metric=args.quality_metric
+                quality_metric=args.quality_metric,
             )
         )
 
@@ -70,12 +120,14 @@ if __name__ == "__main__":
             x_axis_min=x_axis_min,
             x_axis_max=x_axis_max,
             y_axis_min=y_axis_min,
-            y_axis_max=y_axis_max
+            y_axis_max=y_axis_max,
         )
         resized_maps.append(resized_map)
 
     if args.output_dir is None:
-        merged_heatmap_filepath = os.path.join(args.folder, "merged_{}".format('_'.join(args.filepaths)))
+        merged_heatmap_filepath = os.path.join(
+            args.folder, "merged_{}".format("_".join(args.filepaths))
+        )
     else:
         merged_heatmap_filepath = os.path.join(args.folder, args.output_dir)
 
@@ -90,8 +142,12 @@ if __name__ == "__main__":
     resized_map_1 = resized_maps[0]
     resized_map_2 = resized_maps[1]
 
-    valued_keys_1 = set(filter(lambda key: resized_map_1[key] != fill_value, resized_map_1.keys()))
-    valued_keys_2 = set(filter(lambda key: resized_map_2[key] != fill_value, resized_map_2.keys()))
+    valued_keys_1 = set(
+        filter(lambda key: resized_map_1[key] != fill_value, resized_map_1.keys())
+    )
+    valued_keys_2 = set(
+        filter(lambda key: resized_map_2[key] != fill_value, resized_map_2.keys())
+    )
 
     bins_intersection = valued_keys_1.intersection(valued_keys_2)
     logg.info("# Keys that conflict: {}".format(len(bins_intersection)))
@@ -102,7 +158,9 @@ if __name__ == "__main__":
         value_1 = resized_map_1[k]
         value_2 = resized_map_2[k]
         if k in bins_intersection:
-            assert str(k) in population_with_all_individuals, 'Key {} not present in dictionary with all individuals'
+            assert (
+                str(k) in population_with_all_individuals
+            ), "Key {} not present in dictionary with all individuals"
             individuals = population_with_all_individuals[str(k)]
 
             values_individuals = get_values_from_individuals(
@@ -115,20 +173,34 @@ if __name__ == "__main__":
                 values[k] = np.mean(values_individuals)
 
             else:
-                assert args.min_quality_metric is not None, "min_quality_metric argument is needed for normalization"
-                assert args.max_quality_metric is not None, "max_quality_metric argument is needed for normalization"
-                assert args.min_quality_metric < args.max_quality_metric, "Min quality metric {} > Max quality metric {}".format(
-                    args.min_quality_metric, args.max_quality_metric)
+                assert (
+                    args.min_quality_metric is not None
+                ), "min_quality_metric argument is needed for normalization"
+                assert (
+                    args.max_quality_metric is not None
+                ), "max_quality_metric argument is needed for normalization"
+                assert (
+                    args.min_quality_metric < args.max_quality_metric
+                ), "Min quality metric {} > Max quality metric {}".format(
+                    args.min_quality_metric, args.max_quality_metric
+                )
 
                 normalized_values_individuals = []
                 for value_individual in values_individuals:
 
-                    normalized_value = (value_individual - args.min_quality_metric) / (args.max_quality_metric - args.min_quality_metric)
+                    normalized_value = (value_individual - args.min_quality_metric) / (
+                        args.max_quality_metric - args.min_quality_metric
+                    )
 
-                    assert 0 <= normalized_value <= 1, \
-                        "Value {}, original {}, not in bounds, key: {} bounds: ({}, {})".format(
-                            normalized_value, value_individual, k, args.min_quality_metric, args.max_quality_metric
-                        )
+                    assert (
+                        0 <= normalized_value <= 1
+                    ), "Value {}, original {}, not in bounds, key: {} bounds: ({}, {})".format(
+                        normalized_value,
+                        value_individual,
+                        k,
+                        args.min_quality_metric,
+                        args.max_quality_metric,
+                    )
 
                     normalized_values_individuals.append(normalized_value)
 
@@ -136,7 +208,8 @@ if __name__ == "__main__":
 
             logg.info(
                 "Conflict of key {} between the two maps: {} vs {}. Value in map: {}".format(
-                    k, resized_map_1[k], resized_map_2[k], values[k])
+                    k, resized_map_1[k], resized_map_2[k], values[k]
+                )
             )
 
         elif value_1 != fill_value:
@@ -158,7 +231,7 @@ if __name__ == "__main__":
         max_value_cbar=1.0,
         occupation_map=False,
         failure_probability=args.failure_probability,
-        quality_metric=args.quality_metric
+        quality_metric=args.quality_metric,
     )
 
     plot_raw_map_of_elites(
@@ -169,12 +242,9 @@ if __name__ == "__main__":
         y_axis_label=feature_y_name,
         occupation_map=False,
         failure_probability=args.failure_probability,
-        quality_metric=args.quality_metric
+        quality_metric=args.quality_metric,
     )
 
     write_individual_report(
-        filepath=merged_heatmap_filepath,
-        population=population_with_all_individuals
+        filepath=merged_heatmap_filepath, population=population_with_all_individuals
     )
-
-

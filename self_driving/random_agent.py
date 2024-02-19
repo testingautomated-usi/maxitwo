@@ -14,4 +14,3 @@ class RandomAgent(Agent):
 
     def predict(self, obs: np.ndarray, state: Dict) -> np.ndarray:
         return self.env.action_space.sample()
-

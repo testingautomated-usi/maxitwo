@@ -16,16 +16,18 @@ class MockGymEnv(gym.Env):
 
     def __init__(self):
 
-        self.logger = GlobalLog('MockGymEnv')
+        self.logger = GlobalLog("MockGymEnv")
 
         # steering + throttle, action space must be symmetric
         self.action_space = spaces.Box(
             low=np.array([-MAX_STEERING, -1]),
             high=np.array([MAX_STEERING, 1]),
-            dtype=np.float32
+            dtype=np.float32,
         )
 
-        self.observation_space = spaces.Box(low=0, high=255, shape=INPUT_DIM, dtype=np.uint8)
+        self.observation_space = spaces.Box(
+            low=0, high=255, shape=INPUT_DIM, dtype=np.uint8
+        )
 
     def step(self, action: np.ndarray) -> ObserveData:
         """
@@ -37,14 +39,16 @@ class MockGymEnv(gym.Env):
 
         return self.observation_space.sample(), np.random.choice(a=[True, False]), {}
 
-    def reset(self, skip_generation: bool = False, individual: Individual = None) -> np.ndarray:
+    def reset(
+        self, skip_generation: bool = False, individual: Individual = None
+    ) -> np.ndarray:
         return self.observation_space.sample()
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         """
         :param mode: (str)
         """
-        if mode == 'rgb_array':
+        if mode == "rgb_array":
             return self.observation_space.sample()
         return None
 

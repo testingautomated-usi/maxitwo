@@ -14,5 +14,4 @@ class Agent(ABC):
 
     @abstractmethod
     def predict(self, obs: np.ndarray, state: Dict) -> np.ndarray:
-        raise NotImplementedError('Not implemented')
-
+        raise NotImplementedError("Not implemented")

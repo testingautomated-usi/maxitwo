@@ -9,9 +9,8 @@ class Evaluator(ABC):
 
     @abstractmethod
     def run_sim(self, individual: Individual) -> None:
-        raise NotImplemented('Not implemented')
+        raise NotImplemented("Not implemented")
 
     @abstractmethod
     def close(self) -> None:
-        raise NotImplemented('Not implemented')
-
+        raise NotImplemented("Not implemented")

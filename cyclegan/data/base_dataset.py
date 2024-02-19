@@ -2,6 +2,7 @@
 
 It also includes common transformation functions (e.g., get_transform, __scale_width), which can be later used in subclasses.
 """
+
 import random
 
 import PIL.Image
@@ -66,9 +67,9 @@ def get_params(opt, size):
     w, h = size
     new_h = h
     new_w = w
-    if opt.preprocess == 'resize_and_crop':
+    if opt.preprocess == "resize_and_crop":
         new_h = new_w = opt.load_size
-    elif opt.preprocess == 'scale_width_and_crop':
+    elif opt.preprocess == "scale_width_and_crop":
         new_w = opt.load_size
         new_h = opt.load_size * h // w
 
@@ -77,33 +78,47 @@ def get_params(opt, size):
 
     flip = random.random() > 0.5
 
-    return {'crop_pos': (x, y), 'flip': flip}
+    return {"crop_pos": (x, y), "flip": flip}
 
 
-def get_transform(opt, params=None, grayscale=False, method=PIL.Image.BICUBIC, convert=True):
+def get_transform(
+    opt, params=None, grayscale=False, method=PIL.Image.BICUBIC, convert=True
+):
     transform_list = []
     if grayscale:
         transform_list.append(transforms.Grayscale(1))
-    if 'resize' in opt.preprocess:
+    if "resize" in opt.preprocess:
         osize = [opt.load_size, opt.load_size]
         transform_list.append(transforms.Resize(osize, method))
-    elif 'scale_width' in opt.preprocess:
-        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size, opt.crop_size, method)))
+    elif "scale_width" in opt.preprocess:
+        transform_list.append(
+            transforms.Lambda(
+                lambda img: __scale_width(img, opt.load_size, opt.crop_size, method)
+            )
+        )
 
-    if 'crop' in opt.preprocess:
+    if "crop" in opt.preprocess:
         if params is None:
             transform_list.append(transforms.RandomCrop(opt.crop_size))
         else:
-            transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
+            transform_list.append(
+                transforms.Lambda(
+                    lambda img: __crop(img, params["crop_pos"], opt.crop_size)
+                )
+            )
 
-    if opt.preprocess == 'none':
-        transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method)))
+    if opt.preprocess == "none":
+        transform_list.append(
+            transforms.Lambda(lambda img: __make_power_2(img, base=4, method=method))
+        )
 
     if not opt.no_flip:
         if params is None:
             transform_list.append(transforms.RandomHorizontalFlip())
-        elif params['flip']:
-            transform_list.append(transforms.Lambda(lambda img: __flip(img, params['flip'])))
+        elif params["flip"]:
+            transform_list.append(
+                transforms.Lambda(lambda img: __flip(img, params["flip"]))
+            )
 
     if convert:
         transform_list += [transforms.ToTensor()]
@@ -151,9 +166,11 @@ def __flip(img, flip):
 
 def __print_size_warning(ow, oh, w, h):
     """Print warning information about image size(only print once)"""
-    if not hasattr(__print_size_warning, 'has_printed'):
-        print("The image size needs to be a multiple of 4. "
-              "The loaded image size was (%d, %d), so it was adjusted to "
-              "(%d, %d). This adjustment will be done to all images "
-              "whose sizes are not multiples of 4" % (ow, oh, w, h))
+    if not hasattr(__print_size_warning, "has_printed"):
+        print(
+            "The image size needs to be a multiple of 4. "
+            "The loaded image size was (%d, %d), so it was adjusted to "
+            "(%d, %d). This adjustment will be done to all images "
+            "whose sizes are not multiples of 4" % (ow, oh, w, h)
+        )
         __print_size_warning.has_printed = True

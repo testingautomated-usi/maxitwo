@@ -3,7 +3,7 @@ import sys
 
 from config_variables import LOGGING_LEVEL
 
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 class GlobalLog:

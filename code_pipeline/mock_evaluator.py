@@ -17,7 +17,7 @@ class MockEvaluator(Evaluator):
 
     def run_sim(self, individual: Individual) -> None:
 
-        self.logger.info('Executing individual with id {}'.format(individual.id))
+        self.logger.info("Executing individual with id {}".format(individual.id))
 
         # TODO: possibly add a sleep
 

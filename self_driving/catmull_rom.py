@@ -47,7 +47,9 @@ def catmull_rom_chain(points: List[tuple], num_spline_points=20) -> List:
     # The curve cr will contain an array of (x, y) points.
     cr = []
     for j in range(len(points) - 3):
-        c = catmull_rom_spline(points[j], points[j + 1], points[j + 2], points[j + 3], num_spline_points)
+        c = catmull_rom_spline(
+            points[j], points[j + 1], points[j + 2], points[j + 3], num_spline_points
+        )
         if j > 0:
             c = np.delete(c, [0], axis=0)
         cr.extend(c)
@@ -65,7 +67,9 @@ def catmull_rom(points: List[tuple], num_spline_points=20) -> List[tuple]:
     if len(points) < 4:
         raise ValueError("points should have at least 4 points")
     assert all(x[3] == points[0][3] for x in points)
-    np_point_array = catmull_rom_chain([(p[0], p[1]) for p in points], num_spline_points)
+    np_point_array = catmull_rom_chain(
+        [(p[0], p[1]) for p in points], num_spline_points
+    )
     z0 = points[0][2]
     width = points[0][3]
     return [(p[0], p[1], z0, width) for p in np_point_array]
