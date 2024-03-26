@@ -25,3 +25,5 @@ torchaudio==0.8.1
 moviepy==1.0.3
 statsmodels==0.13.2
 tqdm==4.64.0
+protobuf==3.20.3
+Werkzeug==2.2.2
