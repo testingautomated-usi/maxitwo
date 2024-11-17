@@ -1,6 +1,3 @@
-| :zap:        Complete replication package coming soon!        :zap: |
-|---------------------------------------------------------------------|
-
 # Replication Package for the paper: "Two is Better Than One: Digital Siblings to Improve Autonomous Driving Testing"
 
 The repository contains the source code to run the experiments and analyze the results.
@@ -467,7 +464,30 @@ python compute_offline_metrics.py --archive-path logs \
 
 to merge the prediction error distributions of `BeamNG` and `Udacity` and compute its correlation and distance w.r.t. the prediction error distribution of `Donkey`. Save the plot where desired.
 
+## 6. Citing the Project
 
+To cite this repository in publications:
+
+```bibtex
+@article{DBLP:journals/ese/BiagiolaSRT24,
+  author       = {Matteo Biagiola and
+                  Andrea Stocco and
+                  Vincenzo Riccio and
+                  Paolo Tonella},
+  title        = {Two is better than one: digital siblings to improve autonomous driving
+                  testing},
+  journal      = {Empir. Softw. Eng.},
+  volume       = {29},
+  number       = {4},
+  pages        = {72},
+  year         = {2024},
+  url          = {https://doi.org/10.1007/s10664-024-10458-4},
+  doi          = {10.1007/S10664-024-10458-4},
+  timestamp    = {Sun, 04 Aug 2024 19:51:03 +0200},
+  biburl       = {https://dblp.org/rec/journals/ese/BiagiolaSRT24.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+```
 
 
 
